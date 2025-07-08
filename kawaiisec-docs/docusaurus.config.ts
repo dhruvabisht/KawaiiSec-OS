@@ -69,21 +69,16 @@ const config: Config = {
     // Replace with your project's social card
     image: 'img/docusaurus-social-card.jpg',
     navbar: {
-      title: 'My Site',
+      title: 'KawaiiSec OS',
       logo: {
-        alt: 'My Site Logo',
-        src: 'img/logo.svg',
+        alt: 'KawaiiSec Mascot',
+        src: 'img/Kawaii.png',
       },
       items: [
+        { to: '/', label: 'Docs', position: 'left' },
+        { to: '/blog', label: 'Blog', position: 'left' },
         {
-          type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
-          position: 'left',
-          label: 'Tutorial',
-        },
-        {to: '/blog', label: 'Blog', position: 'left'},
-        {
-          href: 'https://github.com/facebook/docusaurus',
+          href: 'https://github.com/dhruvabisht/KawaiiSec-OS',
           label: 'GitHub',
           position: 'right',
         },
@@ -95,44 +90,33 @@ const config: Config = {
         {
           title: 'Docs',
           items: [
-            {
-              label: 'Tutorial',
-              to: '/docs/intro',
-            },
+            { label: 'Getting Started', to: '/' },
+            { label: 'Tools', to: '/docs/tools' },
+            { label: 'Setup', to: '/docs/setup' },
           ],
         },
         {
           title: 'Community',
           items: [
             {
-              label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
+              label: 'GitHub',
+              href: 'https://github.com/dhruvabisht/KawaiiSec-OS',
             },
             {
-              label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
-            },
-            {
-              label: 'X',
-              href: 'https://x.com/docusaurus',
+              label: 'Join Discord',
+              href: 'https://discord.gg/YOUR_INVITE_CODE',
             },
           ],
         },
         {
           title: 'More',
           items: [
-            {
-              label: 'Blog',
-              to: '/blog',
-            },
-            {
-              label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
-            },
+            { label: 'Blog', to: '/blog' },
+            { label: 'Roadmap', to: '/ROADMAP' },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} KawaiiSec OS. Built with love, shell scripts, and Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,

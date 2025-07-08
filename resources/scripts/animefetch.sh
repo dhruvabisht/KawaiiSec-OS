@@ -1,5 +1,21 @@
 #!/bin/bash
 
+# ASCII Mascot - Cute hacker chibi with cat-ears
+if [[ "$1" != "--no-ascii" ]]; then
+  cat << "EOF"
+      ／＞　 フ
+     | 　_　_| 
+   ／` ミ＿xノ 
+  /　　　　 |
+ /　 ヽ　　 ﾉ
+│　　|　|　|
+／￣|　　 |　|
+(￣ヽ＿_ヽ_)__)
+＼二)
+
+EOF
+fi
+
 # Get memory info from macOS vm_stat
 mem_used=$(vm_stat | awk '/Pages active/ {active=$3} /Pages wired/ {wired=$3} /Pages speculative/ {spec=$3} END {used=(active + wired + spec) * 4096 / 1048576; printf("%.0fMB", used)}')
 mem_total=$(sysctl -n hw.memsize | awk '{printf("%.0fMB", $1 / 1048576)}')
