@@ -21,15 +21,15 @@ else
     # Try to find the script location relative to current directory
     SCRIPT_DIR="$(pwd)"
     # Look for the audio script in common locations
-    if [[ -f "resources/scripts/kawaii-audio.sh" ]]; then
-        SCRIPT_DIR="$(pwd)/resources/scripts"
-    elif [[ -f "../resources/scripts/kawaii-audio.sh" ]]; then
-        SCRIPT_DIR="$(cd ../resources/scripts && pwd)"
+    if [[ -f "assets/scripts/audio/kawaii-audio.sh" ]]; then
+        SCRIPT_DIR="$(pwd)/assets/scripts/audio"
+    elif [[ -f "../assets/scripts/audio/kawaii-audio.sh" ]]; then
+        SCRIPT_DIR="$(cd ../assets/scripts/audio && pwd)"
     fi
 fi
 
-# From resources/scripts/ to resources/sounds/ is ../sounds/
-KAWAII_AUDIO_DIR="${SCRIPT_DIR}/../sounds"
+# From assets/scripts/audio/ to assets/audio/ is ../../audio/
+KAWAII_AUDIO_DIR="${SCRIPT_DIR}/../../audio"
 
 # Debug output (only if debug is enabled)
 if [[ "${KAWAII_DEBUG:-}" == "true" ]]; then
@@ -43,10 +43,10 @@ fi
 if [[ ! -d "$KAWAII_AUDIO_DIR" ]]; then
     # Try different possible locations
     POSSIBLE_LOCATIONS=(
-        "$SCRIPT_DIR/../sounds"  # From scripts/ to sounds/
-        "$(pwd)/resources/sounds"  # From project root
-        "$SCRIPT_DIR/../../resources/sounds"  # Up two levels then down
-        "${SCRIPT_DIR%/*}/sounds"  # Remove one path component and add sounds
+        "$SCRIPT_DIR/../../audio"  # From scripts/audio/ to audio/
+        "$(pwd)/assets/audio"  # From project root
+        "$SCRIPT_DIR/../../../assets/audio"  # Up three levels then down
+        "${SCRIPT_DIR%/*/*}/audio"  # Remove two path components and add audio
     )
     
     for location in "${POSSIBLE_LOCATIONS[@]}"; do

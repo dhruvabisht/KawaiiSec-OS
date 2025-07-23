@@ -29,8 +29,8 @@ EOF
 
 # Source the KawaiiSec audio system
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "${SCRIPT_DIR}/kawaii-audio.sh" ]]; then
-    source "${SCRIPT_DIR}/kawaii-audio.sh"
+if [[ -f "${SCRIPT_DIR}/../audio/kawaii-audio.sh" ]]; then
+    source "${SCRIPT_DIR}/../audio/kawaii-audio.sh"
     KAWAII_AUDIO_ENABLED=true
 else
     echo -e "${GRAY}🔇 KawaiiSec audio system not found - sound disabled${RESET}"

@@ -71,8 +71,8 @@ KAWAII_AUDIO_PATH="${ZDOTDIR:-$HOME}/.kawaiisec/kawaii-audio.sh"
 if [[ -f "$KAWAII_AUDIO_PATH" ]]; then
     source "$KAWAII_AUDIO_PATH"
     KAWAII_AUDIO_AVAILABLE=true
-elif [[ -f "$(dirname "$0")/../../resources/scripts/kawaii-audio.sh" ]]; then
-    source "$(dirname "$0")/../../resources/scripts/kawaii-audio.sh"
+elif [[ -f "$(dirname "$0")/../../../assets/scripts/audio/kawaii-audio.sh" ]]; then
+    source "$(dirname "$0")/../../../assets/scripts/audio/kawaii-audio.sh"
     KAWAII_AUDIO_AVAILABLE=true
 else
     KAWAII_AUDIO_AVAILABLE=false
