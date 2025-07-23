@@ -13,17 +13,13 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
  Create as many sidebars as you want.
  */
 const sidebars: SidebarsConfig = {
-  // By default, Docusaurus generates a sidebar from the docs folder structure
+  // KawaiiSec OS Documentation Structure
   tutorialSidebar: [
     'index',
-    'setup',
+    'intro',
+    'setup', 
     'tools',
     'roadmap',
-    {
-      type: 'category',
-      label: 'Tutorial',
-      items: ['tutorial-basics/create-a-document'],
-    },
   ],
 };
 

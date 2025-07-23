@@ -43,24 +43,10 @@ const config: Config = {
           editUrl:
             'https://github.com/dhruvabisht/KawaiiSec-OS/tree/main/kawaiisec-docs/',
         },
-        blog: {
-          showReadingTime: true,
-          feedOptions: {
-            type: ['rss', 'atom'],
-            xslt: true,
+          blog: false, // Disable blog functionality
+          theme: {
+            customCss: './src/css/custom.css',
           },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/dhruvabisht/KawaiiSec-OS/tree/main/kawaiisec-docs/',
-          // Useful options to enforce blogging best practices
-          onInlineTags: 'warn',
-          onInlineAuthors: 'warn',
-          onUntruncatedBlogPosts: 'warn',
-        },
-        theme: {
-          customCss: './src/css/custom.css',
-        },
       } satisfies Preset.Options,
     ],
   ],
@@ -75,8 +61,7 @@ const config: Config = {
         src: 'img/Kawaii.png',
       },
       items: [
-        { to: '/', label: 'Docs', position: 'left' },
-        { to: '/blog', label: 'Blog', position: 'left' },
+        { to: '/docs', label: 'Docs', position: 'left' },
         {
           href: 'https://github.com/dhruvabisht/KawaiiSec-OS',
           label: 'GitHub',
@@ -90,7 +75,7 @@ const config: Config = {
         {
           title: 'Docs',
           items: [
-            { label: 'Getting Started', to: '/' },
+            { label: 'Getting Started', to: '/docs' },
             { label: 'Tools', to: '/docs/tools' },
             { label: 'Setup', to: '/docs/setup' },
           ],
@@ -111,7 +96,6 @@ const config: Config = {
         {
           title: 'More',
           items: [
-            { label: 'Blog', to: '/blog' },
             { label: 'Roadmap', to: '/docs/roadmap' },
             { label: 'GitHub', href: 'https://github.com/dhruvabisht/KawaiiSec-OS' },
           ],

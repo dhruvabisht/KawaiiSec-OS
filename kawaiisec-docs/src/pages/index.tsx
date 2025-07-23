@@ -12,9 +12,9 @@ export default function Home(): React.ReactElement {
           Cute on the outside. Terminally dangerous on the inside. 💀💕<br />
           A Linux distro for ethical hackers who vibe in pink.
         </p>
-        <img src="/img/kawaii.png" alt="KawaiiSec OS Mascot" width="300px" />
+        <img src="/img/Kawaii.png" alt="KawaiiSec OS Mascot" width="300px" />
         <div style={{ marginTop: '2rem' }}>
-          <a href="/docs/index" className="button button--primary button--lg">
+          <a href="/docs" className="button button--primary button--lg">
             Get Started with KawaiiSec →
           </a>
         </div>
