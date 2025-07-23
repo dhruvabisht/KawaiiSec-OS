@@ -17,6 +17,8 @@ const sidebars: SidebarsConfig = {
   tutorialSidebar: [
     'index',
     'setup',
+    'tools',
+    'roadmap',
     {
       type: 'category',
       label: 'Tutorial',

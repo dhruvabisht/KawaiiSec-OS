@@ -135,7 +135,7 @@ Now that you have KawaiiSec OS installed:
 
 ## 🆘 Need Help?
 
-- 📖 Check our [documentation](docs/)
+- 📖 Check our [documentation](/)
 - 💬 Join our [Discord server](https://discord.gg/kawaiisec)
 - 🐛 Report bugs on [GitHub](https://github.com/dhruvabisht/KawaiiSec-OS/issues)
 - 📧 Email us at support@kawaiisec.os

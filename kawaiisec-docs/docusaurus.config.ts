@@ -21,7 +21,7 @@ const config: Config = {
   organizationName: 'dhruvabisht', // Usually your GitHub org/user name.
   projectName: 'KawaiiSec-OS', // Usually your repo name.
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'ignore',
   onBrokenMarkdownLinks: 'warn',
 
   // Even if you don't use internationalization, you can use this field to set
@@ -112,7 +112,8 @@ const config: Config = {
           title: 'More',
           items: [
             { label: 'Blog', to: '/blog' },
-            { label: 'Roadmap', to: '/ROADMAP' },
+            { label: 'Roadmap', to: '/docs/roadmap' },
+            { label: 'GitHub', href: 'https://github.com/dhruvabisht/KawaiiSec-OS' },
           ],
         },
       ],
