@@ -77,20 +77,6 @@ case "$1" in
         # Make all KawaiiSec scripts executable
         chmod +x /usr/local/bin/kawaiisec-*.sh 2>/dev/null || true
         
-        # Setup firewall with secure defaults
-        echo "Setting up KawaiiSec firewall protection..."
-        if [ -f /usr/local/bin/kawaiisec-firewall-setup.sh ]; then
-            # Copy lab ports configuration
-            mkdir -p /etc/kawaiisec
-            if [ -f /usr/share/kawaiisec/config/lab_ports.conf ]; then
-                cp /usr/share/kawaiisec/config/lab_ports.conf /etc/kawaiisec/
-            fi
-            
-            # Run firewall setup
-            /usr/local/bin/kawaiisec-firewall-setup.sh setup 2>/dev/null || true
-            echo "Firewall configured with hardened lab-ready protection"
-        fi
-        
         # Setup desktop environment if requested
         echo "Setting up desktop environment..."
         if [ -f /usr/local/bin/kawaiisec-desktop-setup.sh ]; then
@@ -108,7 +94,6 @@ case "$1" in
         echo "  - Disk quota management"
         echo "  - OverlayFS support for immutable root"
         echo "  - XFCE desktop environment with KawaiiSec branding"
-        echo "  - Hardened firewall protection with lab-ready configuration"
         ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

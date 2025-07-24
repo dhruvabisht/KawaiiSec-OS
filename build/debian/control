@@ -93,10 +93,7 @@ Depends: ${misc:Depends},
  xserver-xorg,
 # First-boot wizard dependencies
  whiptail,
- dialog,
-# Firewall and security
- ufw,
- netcat-openbsd
+ dialog
 Recommends: wireshark,
  tcpdump,
  netcat-openbsd,

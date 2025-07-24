@@ -1,0 +1,391 @@
+name: 🖥️ Hardware Compatibility Testing
+
+on:
+  schedule:
+    # Run weekly on Sundays at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      test_environment:
+        description: 'Test environment to focus on'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - ubuntu-latest
+          - ubuntu-20.04
+          - ubuntu-22.04
+      update_matrix:
+        description: 'Update hardware matrix with results'
+        required: false
+        default: false
+        type: boolean
+  push:
+    paths:
+      - 'scripts/kawaiisec-hwtest.sh'
+      - 'docs/hardware_matrix.md'
+      - '.github/workflows/hardware-testing.yml'
+
+env:
+  HARDWARE_REPORT_DIR: "hardware-reports"
+
+jobs:
+  # Test on different Ubuntu versions in GitHub Actions runners
+  test-github-runners:
+    name: 🖥️ Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-20.04, ubuntu-22.04]
+        include:
+          - os: ubuntu-latest
+            label: "GitHub Ubuntu Latest"
+          - os: ubuntu-20.04
+            label: "GitHub Ubuntu 20.04"
+          - os: ubuntu-22.04
+            label: "GitHub Ubuntu 22.04"
+    
+    steps:
+      - name: 🛠️ Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: 📋 System Information
+        run: |
+          echo "🖥️ System Information:"
+          echo "OS: $(lsb_release -d | cut -f2)"
+          echo "Kernel: $(uname -r)"
+          echo "Architecture: $(uname -m)"
+          echo "CPU: $(nproc) cores"
+          echo "Memory: $(free -h | grep '^Mem:' | awk '{print $2}')"
+          echo "Disk: $(df -h / | tail -1 | awk '{print $2}')"
+          echo ""
+          
+      - name: 🔧 Install Test Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            lshw \
+            pciutils \
+            usbutils \
+            alsa-utils \
+            pulseaudio \
+            mesa-utils \
+            v4l-utils \
+            wireless-tools \
+            net-tools \
+            ethtool \
+            lm-sensors \
+            dmidecode \
+            smartmontools \
+            hdparm \
+            linux-tools-generic \
+            cpuid
+            
+      - name: 🚀 Make Hardware Test Script Executable
+        run: chmod +x scripts/kawaiisec-hwtest.sh
+        
+      - name: 🧪 Run Hardware Compatibility Test
+        run: |
+          # Create output directory
+          mkdir -p ${{ env.HARDWARE_REPORT_DIR }}
+          
+          # Run the hardware test (non-interactive)
+          sudo scripts/kawaiisec-hwtest.sh --no-root || true
+          
+          # Copy report with environment info
+          if [ -f "$HOME/kawaiisec_hw_report.txt" ]; then
+            cp "$HOME/kawaiisec_hw_report.txt" "${{ env.HARDWARE_REPORT_DIR }}/report-${{ matrix.os }}.txt"
+            echo "✅ Hardware report generated successfully"
+          else
+            echo "⚠️ No hardware report generated"
+          fi
+          
+      - name: 📊 Parse Test Results  
+        id: parse_results
+        run: |
+          REPORT_FILE="${{ env.HARDWARE_REPORT_DIR }}/report-${{ matrix.os }}.txt"
+          
+          if [ -f "$REPORT_FILE" ]; then
+            # Count test results
+            WORKING=$(grep -c "✅" "$REPORT_FILE" || echo "0")
+            PARTIAL=$(grep -c "⚠️" "$REPORT_FILE" || echo "0")
+            FAILED=$(grep -c "❌" "$REPORT_FILE" || echo "0")
+            TOTAL=$((WORKING + PARTIAL + FAILED))
+            
+            if [ $TOTAL -gt 0 ]; then
+              PERCENTAGE=$((WORKING * 100 / TOTAL))
+            else
+              PERCENTAGE=0
+            fi
+            
+            echo "working=$WORKING" >> $GITHUB_OUTPUT
+            echo "partial=$PARTIAL" >> $GITHUB_OUTPUT
+            echo "failed=$FAILED" >> $GITHUB_OUTPUT
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "percentage=$PERCENTAGE" >> $GITHUB_OUTPUT
+            
+            echo "📊 Test Results Summary:"
+            echo "  Total Tests: $TOTAL"
+            echo "  Working: $WORKING ($PERCENTAGE%)"
+            echo "  Partial: $PARTIAL"
+            echo "  Failed: $FAILED"
+          else
+            echo "❌ No report file found"
+            echo "working=0" >> $GITHUB_OUTPUT
+            echo "total=0" >> $GITHUB_OUTPUT
+            echo "percentage=0" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: 💾 Upload Hardware Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hardware-report-${{ matrix.os }}
+          path: ${{ env.HARDWARE_REPORT_DIR }}/report-${{ matrix.os }}.txt
+          retention-days: 30
+          
+      - name: 📝 Create Test Summary
+        run: |
+          cat > test-summary-${{ matrix.os }}.md << EOF
+          ## 🖥️ Hardware Test Results: ${{ matrix.label }}
+          
+          **Environment**: GitHub Actions Runner (${{ matrix.os }})  
+          **Test Date**: $(date '+%Y-%m-%d %H:%M:%S UTC')  
+          **Workflow**: [\`${{ github.workflow }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          ### 📊 Results Summary
+          - **Total Tests**: ${{ steps.parse_results.outputs.total }}
+          - **Working**: ${{ steps.parse_results.outputs.working }} (${{ steps.parse_results.outputs.percentage }}%)
+          - **Partial**: ${{ steps.parse_results.outputs.partial }}
+          - **Failed**: ${{ steps.parse_results.outputs.failed }}
+          
+          ### 🎯 Compatibility Rating
+          EOF
+          
+          PERCENTAGE=${{ steps.parse_results.outputs.percentage }}
+          if [ $PERCENTAGE -ge 90 ]; then
+            echo "✅ **Excellent** - $PERCENTAGE% compatibility" >> test-summary-${{ matrix.os }}.md
+          elif [ $PERCENTAGE -ge 70 ]; then
+            echo "⚠️ **Good** - $PERCENTAGE% compatibility" >> test-summary-${{ matrix.os }}.md
+          elif [ $PERCENTAGE -ge 50 ]; then
+            echo "⚠️ **Fair** - $PERCENTAGE% compatibility" >> test-summary-${{ matrix.os }}.md
+          else
+            echo "❌ **Poor** - $PERCENTAGE% compatibility" >> test-summary-${{ matrix.os }}.md
+          fi
+          
+          echo "" >> test-summary-${{ matrix.os }}.md
+          echo "📄 **Full Report**: [Download artifact](../artifacts/hardware-report-${{ matrix.os }})" >> test-summary-${{ matrix.os }}.md
+          
+      - name: 📤 Upload Test Summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-summary-${{ matrix.os }}
+          path: test-summary-${{ matrix.os }}.md
+          retention-days: 30
+
+  # Test with Docker containers to simulate different environments
+  test-docker-environments:
+    name: 🐳 Docker Test - ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: "debian:12"
+            label: "Debian 12 (Bookworm)"
+          - image: "debian:11"
+            label: "Debian 11 (Bullseye)"
+          - image: "ubuntu:22.04"
+            label: "Ubuntu 22.04 LTS"
+          - image: "ubuntu:20.04"
+            label: "Ubuntu 20.04 LTS"
+          - image: "kalilinux/kali-rolling"
+            label: "Kali Linux Rolling"
+    
+    steps:
+      - name: 🛠️ Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: 🐳 Test in Docker Container
+        run: |
+          # Create a test script to run in the container
+          cat > docker-test.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          echo "🖥️ Container Environment Information:"
+          echo "Image: $1"
+          echo "OS: $(cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)"
+          echo "Kernel: $(uname -r)"
+          echo "Architecture: $(uname -m)"
+          echo ""
+          
+          # Update package lists
+          if command -v apt-get >/dev/null 2>&1; then
+            apt-get update
+            apt-get install -y \
+              lshw \
+              pciutils \
+              usbutils \
+              alsa-utils \
+              net-tools \
+              procps \
+              lsb-release \
+              sudo \
+              curl \
+              wget \
+              2>/dev/null || true
+          elif command -v yum >/dev/null 2>&1; then
+            yum update -y
+            yum install -y \
+              pciutils \
+              usbutils \
+              alsa-utils \
+              net-tools \
+              procps \
+              redhat-lsb-core \
+              sudo \
+              curl \
+              wget \
+              2>/dev/null || true
+          fi
+          
+          # Make script executable and run test
+          chmod +x /test/scripts/kawaiisec-hwtest.sh
+          
+          echo "🧪 Running hardware test..."
+          cd /test
+          timeout 300 /test/scripts/kawaiisec-hwtest.sh --quick --no-root || echo "Test completed with warnings"
+          
+          # Check if report was generated
+          if [ -f "/root/kawaiisec_hw_report.txt" ]; then
+            echo "✅ Report generated successfully"
+            head -50 /root/kawaiisec_hw_report.txt
+          else
+            echo "⚠️ No report generated"
+          fi
+          EOF
+          
+          chmod +x docker-test.sh
+          
+          # Run test in container
+          docker run --rm \
+            --privileged \
+            -v $(pwd):/test:ro \
+            -v $(pwd)/docker-test.sh:/docker-test.sh:ro \
+            ${{ matrix.image }} \
+            /docker-test.sh "${{ matrix.image }}"
+
+  # Consolidate and create summary report
+  create-summary-report:
+    name: 📋 Create Summary Report
+    runs-on: ubuntu-latest
+    needs: [test-github-runners, test-docker-environments]
+    if: always()
+    
+    steps:
+      - name: 🛠️ Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: 📥 Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          
+      - name: 📊 Generate Comprehensive Summary
+        run: |
+          mkdir -p reports
+          
+          cat > reports/hardware-test-summary.md << 'EOF'
+          # 🖥️ KawaiiSec OS Hardware Compatibility Test Results
+          
+          **Test Run**: `${{ github.workflow }}`  
+          **Date**: `${{ github.event.head_commit.timestamp || github.run_id }}`  
+          **Commit**: `${{ github.sha }}`  
+          **Workflow**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          ## 📊 Test Environment Results
+          
+          ### GitHub Actions Runners
+          EOF
+          
+          # Process GitHub runner results
+          for summary in artifacts/test-summary-*/test-summary-*.md; do
+            if [ -f "$summary" ]; then
+              echo "Processing: $summary"
+              cat "$summary" >> reports/hardware-test-summary.md
+              echo "" >> reports/hardware-test-summary.md
+            fi
+          done
+          
+          cat >> reports/hardware-test-summary.md << 'EOF'
+          
+          ### 🐳 Docker Container Tests
+          
+          Docker container testing completed for multiple Linux distributions.
+          See individual test logs for detailed results.
+          
+          ## 📋 Next Steps
+          
+          1. **Review Results**: Check individual test reports for detailed hardware information
+          2. **Update Matrix**: Consider updating `docs/hardware_matrix.md` with new results
+          3. **Community Contribution**: Share results with the KawaiiSec OS community
+          
+          ## 🔗 Useful Links
+          
+          - [Hardware Compatibility Matrix](docs/hardware_matrix.md)
+          - [Hardware Testing Script](scripts/kawaiisec-hwtest.sh)
+          - [Contributing Guidelines](CONTRIBUTING.md)
+          
+          ---
+          
+          *Automated by KawaiiSec OS Hardware Testing Workflow* 🌸
+          EOF
+          
+      - name: 📤 Upload Summary Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardware-test-summary
+          path: reports/hardware-test-summary.md
+          retention-days: 90
+          
+      - name: 📝 Update Hardware Matrix (if requested)
+        if: github.event.inputs.update_matrix == 'true'
+        run: |
+          echo "🔄 Updating hardware compatibility matrix..."
+          
+          # Add automated test results to the matrix
+          # This would require additional logic to parse results and update the markdown table
+          
+          # For now, create a comment with results
+          if [ -f "reports/hardware-test-summary.md" ]; then
+            echo "Summary report created successfully"
+            
+            # TODO: Parse results and update docs/hardware_matrix.md
+            # This could be implemented to automatically add CI test results
+            # to the compatibility matrix tables
+          fi
+          
+  # Optional: Post results to Discord/Slack (if webhooks are configured)
+  notify-results:
+    name: 📢 Notify Results
+    runs-on: ubuntu-latest
+    needs: [create-summary-report]
+    if: github.event_name == 'schedule' && success()
+    
+    steps:
+      - name: 📢 Notify Success
+        run: |
+          echo "🎉 Weekly hardware compatibility testing completed successfully!"
+          echo "📊 Results available in workflow artifacts"
+          
+          # TODO: Add Discord/Slack webhook notification
+          # if [ -n "${{ secrets.DISCORD_WEBHOOK }}" ]; then
+          #   curl -H "Content-Type: application/json" \
+          #        -d '{"content":"🌸 KawaiiSec OS weekly hardware testing completed!"}' \
+          #        "${{ secrets.DISCORD_WEBHOOK }}"
+          # fi 

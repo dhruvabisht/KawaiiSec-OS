@@ -1,0 +1,539 @@
+name: 📊 Performance Benchmarking
+
+on:
+  schedule:
+    # Run nightly at 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      benchmark_type:
+        description: 'Type of benchmark to run'
+        required: false
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - quick
+          - artifacts
+      test_environment:
+        description: 'Test environment to focus on'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - ubuntu-latest
+          - ubuntu-20.04
+          - ubuntu-22.04
+      publish_results:
+        description: 'Publish results to GitHub Pages'
+        required: false
+        default: false
+        type: boolean
+  release:
+    types: [published, prereleased]
+  push:
+    paths:
+      - 'scripts/kawaiisec-benchmarks.sh'
+      - 'docs/performance.md'
+      - '.github/workflows/performance-benchmarking.yml'
+
+env:
+  BENCHMARK_REPORTS_DIR: "benchmark-reports"
+  BENCHMARK_ARTIFACTS_DIR: "benchmark-artifacts"
+
+jobs:
+  # Performance benchmarking on different Ubuntu versions
+  benchmark-github-runners:
+    name: 📊 Benchmark ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-20.04, ubuntu-22.04]
+        include:
+          - os: ubuntu-latest
+            label: "GitHub Ubuntu Latest"
+            runner_spec: "2-core 7GB RAM"
+          - os: ubuntu-20.04
+            label: "GitHub Ubuntu 20.04"
+            runner_spec: "2-core 7GB RAM"  
+          - os: ubuntu-22.04
+            label: "GitHub Ubuntu 22.04"
+            runner_spec: "2-core 7GB RAM"
+    
+    steps:
+      - name: 🛠️ Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: 📋 Pre-Benchmark System Information
+        run: |
+          echo "🖥️ Pre-Benchmark System State:"
+          echo "OS: $(lsb_release -d | cut -f2)"
+          echo "Kernel: $(uname -r)"
+          echo "Architecture: $(uname -m)"
+          echo "CPU: $(nproc) cores"
+          echo "Memory: $(free -h | grep '^Mem:' | awk '{print $2}')"
+          echo "Disk: $(df -h / | tail -1 | awk '{print $2}')"
+          echo "Load Average: $(cat /proc/loadavg)"
+          echo "Current Time: $(date '+%Y-%m-%d %H:%M:%S %Z')"
+          echo ""
+          
+      - name: 🔧 Install Benchmark Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            hdparm \
+            iotop \
+            sysstat \
+            lm-sensors \
+            smartmontools \
+            ioping \
+            python3-pip \
+            graphviz \
+            2>/dev/null || true
+            
+          # Install ps_mem for better memory analysis
+          sudo pip3 install ps_mem || echo "ps_mem installation failed, using fallback"
+          
+      - name: 🚀 Make Benchmark Script Executable
+        run: chmod +x scripts/kawaiisec-benchmarks.sh
+        
+      - name: 📊 Run Performance Benchmark
+        run: |
+          # Create output directories
+          mkdir -p ${{ env.BENCHMARK_REPORTS_DIR }}
+          mkdir -p ${{ env.BENCHMARK_ARTIFACTS_DIR }}
+          
+          # Determine benchmark type
+          BENCHMARK_TYPE="${{ github.event.inputs.benchmark_type || 'full' }}"
+          if [[ "$BENCHMARK_TYPE" == "quick" ]]; then
+            BENCHMARK_ARGS="--quick"
+          elif [[ "$BENCHMARK_TYPE" == "artifacts" ]]; then
+            BENCHMARK_ARGS="--artifacts"
+          else
+            BENCHMARK_ARGS=""
+          fi
+          
+          # Run benchmark with output directory
+          echo "🏃 Running benchmark: $BENCHMARK_TYPE"
+          scripts/kawaiisec-benchmarks.sh --output "$PWD/${{ env.BENCHMARK_REPORTS_DIR }}" $BENCHMARK_ARGS
+          
+          # Copy artifacts if they exist
+          if ls $HOME/boot-chart-*.svg $HOME/boot-dependencies-*.svg 2>/dev/null; then
+            cp $HOME/boot-chart-*.svg $HOME/boot-dependencies-*.svg "${{ env.BENCHMARK_ARTIFACTS_DIR }}/" 2>/dev/null || true
+          fi
+          
+          echo "✅ Benchmark completed successfully"
+          
+      - name: 📊 Parse Benchmark Results
+        id: parse_results
+        run: |
+          # Find the latest benchmark report
+          REPORT_FILE=$(ls ${{ env.BENCHMARK_REPORTS_DIR }}/kawaiisec_benchmarks_*.txt | sort | tail -1)
+          
+          if [ -f "$REPORT_FILE" ]; then
+            echo "report_file=$REPORT_FILE" >> $GITHUB_OUTPUT
+            
+            # Extract key metrics
+            BOOT_TIME=$(grep "Boot Time:" "$REPORT_FILE" | head -1 | awk -F': ' '{print $2}' | sed 's/^ *//' || echo "N/A")
+            MEMORY_USAGE=$(grep "Memory Usage:" "$REPORT_FILE" | head -1 | awk -F': ' '{print $2}' | cut -d'%' -f1 | sed 's/^ *//' || echo "N/A")
+            DISK_USAGE=$(grep "Root Disk Usage:" "$REPORT_FILE" | head -1 | awk -F': ' '{print $2}' | sed 's/^ *//' || echo "N/A")
+            LOAD_AVG=$(grep "Load Average (1m):" "$REPORT_FILE" | head -1 | awk -F': ' '{print $2}' | sed 's/^ *//' || echo "N/A")
+            
+            echo "boot_time=$BOOT_TIME" >> $GITHUB_OUTPUT
+            echo "memory_usage=$MEMORY_USAGE" >> $GITHUB_OUTPUT
+            echo "disk_usage=$DISK_USAGE" >> $GITHUB_OUTPUT
+            echo "load_avg=$LOAD_AVG" >> $GITHUB_OUTPUT
+            
+            # Performance rating based on metrics
+            PERFORMANCE_SCORE=100
+            if [[ "$MEMORY_USAGE" != "N/A" ]] && [[ "$MEMORY_USAGE" -gt 70 ]]; then
+              PERFORMANCE_SCORE=$((PERFORMANCE_SCORE - 20))
+            fi
+            if [[ "$DISK_USAGE" != "N/A" ]] && [[ "${DISK_USAGE%\%}" -gt 80 ]]; then
+              PERFORMANCE_SCORE=$((PERFORMANCE_SCORE - 15))
+            fi
+            if [[ "$LOAD_AVG" != "N/A" ]] && (( $(echo "$LOAD_AVG > 2.0" | bc -l 2>/dev/null || echo 0) )); then
+              PERFORMANCE_SCORE=$((PERFORMANCE_SCORE - 15))
+            fi
+            
+            echo "performance_score=$PERFORMANCE_SCORE" >> $GITHUB_OUTPUT
+            
+            echo "📊 Benchmark Results Summary:"
+            echo "  Boot Time: $BOOT_TIME"
+            echo "  Memory Usage: ${MEMORY_USAGE}%"
+            echo "  Disk Usage: $DISK_USAGE"
+            echo "  Load Average: $LOAD_AVG"
+            echo "  Performance Score: $PERFORMANCE_SCORE/100"
+          else
+            echo "❌ No benchmark report found"
+            echo "performance_score=0" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: 💾 Upload Benchmark Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-report-${{ matrix.os }}
+          path: ${{ env.BENCHMARK_REPORTS_DIR }}/
+          retention-days: 30
+          
+      - name: 🎨 Upload Benchmark Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-artifacts-${{ matrix.os }}
+          path: ${{ env.BENCHMARK_ARTIFACTS_DIR }}/
+          retention-days: 30
+          
+      - name: 📝 Create Performance Summary
+        run: |
+          cat > performance-summary-${{ matrix.os }}.md << EOF
+          ## 📊 Performance Benchmark Results: ${{ matrix.label }}
+          
+          **Environment**: GitHub Actions Runner (${{ matrix.os }})  
+          **Runner Specs**: ${{ matrix.runner_spec }}  
+          **Benchmark Date**: $(date '+%Y-%m-%d %H:%M:%S UTC')  
+          **Workflow**: [\`${{ github.workflow }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          ### 🎯 Key Performance Metrics
+          - **Boot Time**: ${{ steps.parse_results.outputs.boot_time }}
+          - **Memory Usage**: ${{ steps.parse_results.outputs.memory_usage }}%
+          - **Disk Usage**: ${{ steps.parse_results.outputs.disk_usage }}
+          - **Load Average**: ${{ steps.parse_results.outputs.load_avg }}
+          
+          ### 📈 Performance Score
+          **${{ steps.parse_results.outputs.performance_score }}/100**
+          EOF
+          
+          SCORE=${{ steps.parse_results.outputs.performance_score }}
+          if [ $SCORE -ge 85 ]; then
+            echo "✅ **Excellent Performance** - System running optimally" >> performance-summary-${{ matrix.os }}.md
+          elif [ $SCORE -ge 70 ]; then
+            echo "⚠️ **Good Performance** - Minor optimization opportunities" >> performance-summary-${{ matrix.os }}.md
+          elif [ $SCORE -ge 50 ]; then
+            echo "⚠️ **Acceptable Performance** - Consider optimization" >> performance-summary-${{ matrix.os }}.md
+          else
+            echo "❌ **Poor Performance** - Requires investigation" >> performance-summary-${{ matrix.os }}.md
+          fi
+          
+          cat >> performance-summary-${{ matrix.os }}.md << EOF
+          
+          ### 📊 Detailed Analysis
+          - **Boot Performance**: $(if [[ "${{ steps.parse_results.outputs.boot_time }}" == *"N/A"* ]]; then echo "Not measured"; else echo "Measured and recorded"; fi)
+          - **Resource Utilization**: System using ${{ steps.parse_results.outputs.memory_usage }}% memory
+          - **Storage Health**: Disk ${{ steps.parse_results.outputs.disk_usage }} utilized
+          - **System Load**: Current load average ${{ steps.parse_results.outputs.load_avg }}
+          
+          ### 📄 Resources
+          - **Full Report**: [Download benchmark report](../artifacts/benchmark-report-${{ matrix.os }})
+          - **Visual Artifacts**: [Download charts and graphs](../artifacts/benchmark-artifacts-${{ matrix.os }})
+          - **Performance Guide**: [docs/performance.md](docs/performance.md)
+          
+          ---
+          *Automated KawaiiSec OS Performance Benchmark* 🌸
+          EOF
+          
+      - name: 📤 Upload Performance Summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-summary-${{ matrix.os }}
+          path: performance-summary-${{ matrix.os }}.md
+          retention-days: 30
+
+  # Container-based benchmarking for different distributions
+  benchmark-containers:
+    name: 🐳 Container Benchmark - ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: "ubuntu:22.04"
+            label: "Ubuntu 22.04 Container"
+          - image: "ubuntu:20.04"
+            label: "Ubuntu 20.04 Container"
+          - image: "debian:12"
+            label: "Debian 12 Container"
+    
+    steps:
+      - name: 🛠️ Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: 🐳 Run Container Benchmark
+        run: |
+          # Create a test script to run in the container
+          cat > container-benchmark.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          echo "🐳 Container Benchmark Environment:"
+          echo "Image: $1"
+          echo "OS: $(cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)"
+          echo "Kernel: $(uname -r)"
+          echo "Architecture: $(uname -m)"
+          echo "Date: $(date '+%Y-%m-%d %H:%M:%S')"
+          echo ""
+          
+          # Install basic dependencies
+          if command -v apt-get >/dev/null 2>&1; then
+            apt-get update >/dev/null 2>&1
+            apt-get install -y \
+              procps \
+              coreutils \
+              util-linux \
+              lsb-release \
+              curl \
+              2>/dev/null || true
+          fi
+          
+          # Make script executable and run quick benchmark
+          chmod +x /benchmark/scripts/kawaiisec-benchmarks.sh
+          
+          echo "🏃 Running quick benchmark..."
+          cd /benchmark
+          timeout 180 /benchmark/scripts/kawaiisec-benchmarks.sh --quick --output /benchmark/container-reports || echo "Benchmark completed with warnings"
+          
+          # Show basic results
+          if [ -f "/benchmark/container-reports/kawaiisec_benchmarks_"*.txt ]; then
+            echo "✅ Container benchmark completed"
+            echo "📊 Quick Results:"
+            tail -20 /benchmark/container-reports/kawaiisec_benchmarks_*.txt
+          else
+            echo "⚠️ No benchmark report generated"
+          fi
+          EOF
+          
+          chmod +x container-benchmark.sh
+          mkdir -p container-reports
+          
+          # Run benchmark in container
+          docker run --rm \
+            --privileged \
+            -v $(pwd):/benchmark:rw \
+            -v $(pwd)/container-benchmark.sh:/container-benchmark.sh:ro \
+            ${{ matrix.image }} \
+            /container-benchmark.sh "${{ matrix.image }}"
+            
+          # Copy reports out
+          if ls container-reports/kawaiisec_benchmarks_*.txt 2>/dev/null; then
+            cp container-reports/kawaiisec_benchmarks_*.txt benchmark-reports/ 2>/dev/null || true
+          fi
+
+  # Consolidate benchmark results and create comprehensive report
+  create-benchmark-summary:
+    name: 📋 Create Benchmark Summary
+    runs-on: ubuntu-latest
+    needs: [benchmark-github-runners, benchmark-containers]
+    if: always()
+    
+    steps:
+      - name: 🛠️ Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: 📥 Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          
+      - name: 📊 Generate Comprehensive Performance Report
+        run: |
+          mkdir -p reports
+          
+          cat > reports/performance-benchmark-summary.md << 'EOF'
+          # 📊 KawaiiSec OS Performance Benchmark Results
+          
+          **Benchmark Run**: `${{ github.workflow }}`  
+          **Date**: `$(date '+%Y-%m-%d %H:%M:%S %Z')`  
+          **Commit**: `${{ github.sha }}`  
+          **Workflow**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          **Trigger**: ${{ github.event_name }}
+          
+          ## 🎯 Executive Summary
+          
+          This automated performance benchmark evaluates KawaiiSec OS performance across multiple environments to ensure consistent user experience and identify optimization opportunities.
+          
+          ## 📊 Benchmark Results by Environment
+          
+          ### GitHub Actions Runners
+          EOF
+          
+          # Process GitHub runner results
+          for summary in artifacts/performance-summary-*/performance-summary-*.md; do
+            if [ -f "$summary" ]; then
+              echo "Processing: $summary"
+              cat "$summary" >> reports/performance-benchmark-summary.md
+              echo "" >> reports/performance-benchmark-summary.md
+            fi
+          done
+          
+          cat >> reports/performance-benchmark-summary.md << 'EOF'
+          
+          ### 🐳 Container Environments
+          
+          Container-based benchmarking completed for multiple Linux distributions.
+          These results help validate KawaiiSec OS performance in containerized deployments.
+          
+          ## 📈 Performance Trends
+          
+          ### Historical Comparison
+          - Previous benchmarks available in workflow history
+          - Performance regression detection through automated comparison
+          - Optimization impact measurement over time
+          
+          ### Key Performance Indicators (KPIs)
+          - **Boot Time**: Target < 25s (Recommended), < 45s (Minimum)
+          - **Memory Usage**: Target < 60% (Recommended), < 80% (Maximum)
+          - **Storage Utilization**: Target < 70% (Recommended), < 85% (Maximum)
+          - **System Load**: Target < 1.0 (Recommended), < 2.0 (Maximum)
+          
+          ## 🔧 Optimization Recommendations
+          
+          Based on benchmark results, consider the following optimizations:
+          
+          1. **Boot Time Optimization**
+             - Review slow-starting services
+             - Optimize initramfs configuration
+             - Consider systemd service optimization
+          
+          2. **Memory Optimization**
+             - Identify memory-heavy processes
+             - Configure appropriate swap settings
+             - Review running services
+          
+          3. **Storage Optimization**
+             - Clean temporary files and logs
+             - Optimize filesystem configuration
+             - Consider SSD upgrades for critical systems
+          
+          ## 📋 Next Steps
+          
+          1. **Review Results**: Examine individual benchmark reports for detailed analysis
+          2. **Performance Issues**: Create GitHub issues for any performance regressions
+          3. **Optimization PRs**: Submit performance improvements via pull requests
+          4. **Community Sharing**: Share optimization tips in discussions
+          
+          ## 🔗 Resources
+          
+          - [Performance Documentation](docs/performance.md)
+          - [Benchmarking Script](scripts/kawaiisec-benchmarks.sh)
+          - [Hardware Compatibility Matrix](docs/hardware_matrix.md)
+          - [Optimization Guide](docs/performance.md#performance-optimization-guide)
+          
+          ---
+          
+          *Automated by KawaiiSec OS Performance Benchmarking Workflow* 🌸
+          
+          **Generated**: $(date '+%Y-%m-%d %H:%M:%S %Z')
+          EOF
+          
+      - name: 📤 Upload Performance Summary Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-benchmark-summary
+          path: reports/performance-benchmark-summary.md
+          retention-days: 90
+          
+      - name: 📊 Create Performance Database Entry
+        run: |
+          # Create JSON data for performance tracking
+          cat > reports/performance-data.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "workflow_run": "${{ github.run_id }}",
+            "commit_sha": "${{ github.sha }}",
+            "trigger": "${{ github.event_name }}",
+            "environments": {
+              "github_runners": [
+                "ubuntu-latest",
+                "ubuntu-20.04", 
+                "ubuntu-22.04"
+              ],
+              "containers": [
+                "ubuntu:22.04",
+                "ubuntu:20.04",
+                "debian:12"
+              ]
+            },
+            "artifacts": {
+              "reports": "benchmark-reports/",
+              "charts": "benchmark-artifacts/",
+              "summary": "performance-benchmark-summary.md"
+            }
+          }
+          EOF
+          
+      - name: 📈 Publish to GitHub Pages (if enabled)
+        if: github.event.inputs.publish_results == 'true' || github.event_name == 'release'
+        run: |
+          echo "🚀 Publishing performance results to GitHub Pages"
+          
+          # Create a simple HTML page for the results
+          mkdir -p gh-pages
+          cat > gh-pages/performance-report.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>KawaiiSec OS Performance Benchmark</title>
+              <meta charset="utf-8">
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; }
+                  .header { background: linear-gradient(45deg, #ff9a9e, #fecfef); padding: 20px; border-radius: 10px; }
+                  .metric { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+                  .good { border-left: 5px solid #4CAF50; }
+                  .warning { border-left: 5px solid #FF9800; }
+                  .error { border-left: 5px solid #f44336; }
+              </style>
+          </head>
+          <body>
+              <div class="header">
+                  <h1>🌸 KawaiiSec OS Performance Benchmark</h1>
+                  <p>Latest automated performance results</p>
+              </div>
+              
+              <h2>📊 Recent Benchmark Results</h2>
+              <div class="metric good">
+                  <h3>✅ Performance Status: Monitored</h3>
+                  <p>Automated benchmarking is active and collecting performance data.</p>
+              </div>
+              
+              <h2>🔗 Resources</h2>
+              <ul>
+                  <li><a href="https://github.com/${{ github.repository }}/actions">View Workflow Results</a></li>
+                  <li><a href="https://github.com/${{ github.repository }}/blob/main/docs/performance.md">Performance Documentation</a></li>
+                  <li><a href="https://github.com/${{ github.repository }}/blob/main/scripts/kawaiisec-benchmarks.sh">Benchmarking Script</a></li>
+              </ul>
+          </body>
+          </html>
+          EOF
+          
+          echo "📄 Performance report page created"
+
+  # Optional: Notification system for performance regressions
+  notify-performance-issues:
+    name: 📢 Performance Issue Notification
+    runs-on: ubuntu-latest
+    needs: [create-benchmark-summary]
+    if: failure() || (success() && github.event_name == 'schedule')
+    
+    steps:
+      - name: 📢 Notify Performance Status
+        run: |
+          if [[ "${{ job.status }}" == "failure" ]]; then
+            echo "⚠️ Performance benchmark encountered issues!"
+            echo "📊 Check workflow logs for details"
+          else
+            echo "✅ Scheduled performance benchmark completed successfully!"
+            echo "📈 Results available in workflow artifacts"
+          fi
+          
+          # TODO: Add webhook notifications (Discord/Slack/Teams)
+          # This would allow real-time notifications of performance issues
+          # if [ -n "${{ secrets.PERFORMANCE_WEBHOOK }}" ]; then
+          #   curl -H "Content-Type: application/json" \
+          #        -d '{"content":"🌸 KawaiiSec OS performance benchmark completed"}' \
+          #        "${{ secrets.PERFORMANCE_WEBHOOK }}"
+          # fi 

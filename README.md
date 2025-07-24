@@ -31,6 +31,13 @@ KawaiiSec OS is a Kali Linux-based educational distribution designed for cyberse
 - **Automated system cleanup** and maintenance
 - **Comprehensive logging** and reporting
 
+### 🖥️ Hardware Compatibility System
+- **Comprehensive hardware testing** across virtualization and physical systems
+- **Automated compatibility reports** for community contribution
+- **Hardware compatibility matrix** with detailed test results
+- **CI/CD integration** for continuous compatibility validation
+- **Community-driven testing** with easy contribution workflow
+
 ## 🚀 Quick Start
 
 ### Installation
@@ -145,6 +152,41 @@ kawaiisec-cleanup.sh all
 kawaiisec-cleanup.sh dry-run
 ```
 
+## 🖥️ Hardware Compatibility Testing
+
+### Run Hardware Test
+Test your system's compatibility with KawaiiSec OS:
+
+```bash
+# Quick compatibility test
+make hwtest
+
+# Or run the script directly
+sudo kawaiisec-hwtest.sh
+
+# Generate detailed report
+sudo kawaiisec-hwtest.sh --detailed
+```
+
+### Check Compatibility Matrix
+Review tested hardware and compatibility status:
+
+```bash
+# View the compatibility matrix
+less docs/hardware_matrix.md
+
+# Or online at
+# https://github.com/your-org/KawaiiSec-OS/docs/hardware_matrix.md
+```
+
+### Contribute Test Results
+Help improve hardware support by submitting your test results:
+
+1. Run the hardware test on your system
+2. Review the generated report at `~/kawaiisec_hw_report.txt`
+3. Fork the repository and update `docs/hardware_matrix.md`
+4. Submit a pull request with your hardware details
+
 ## 🧪 Lab Environments
 
 ### Available Labs
@@ -247,6 +289,9 @@ KawaiiSec-OS/
 Comprehensive documentation is available:
 - [Quick Start Guide](docs/quick-start-lab-guide.md)
 - [Partitioning Guide](docs/partitioning.md)
+- [Hardware Compatibility Matrix](docs/hardware_matrix.md)
+- [Desktop Environment Setup](docs/desktop_environment.md)
+- [Firewall Configuration](docs/firewall.md)
 - [API Documentation](kawaiisec-docs/)
 
 ### Online Documentation
