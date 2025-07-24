@@ -1,0 +1,27 @@
+[Unit]
+Description=KawaiiSec OS First Boot Setup Wizard
+Documentation=man:kawaiisec-firstboot(8)
+Wants=network-online.target
+After=network-online.target graphical-session.target
+Before=gdm.service
+ConditionPathExists=!/var/lib/kawaiisec/firstboot-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/kawaiisec-firstboot.sh
+RemainAfterExit=yes
+StandardOutput=journal+console
+StandardError=journal+console
+TimeoutStartSec=0
+
+# Security settings
+NoNewPrivileges=false
+ProtectSystem=false
+ProtectHome=false
+
+# Environment
+Environment=TERM=linux
+Environment=DEBIAN_FRONTEND=dialog
+
+[Install]
+WantedBy=multi-user.target 

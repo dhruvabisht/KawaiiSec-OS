@@ -35,11 +35,18 @@ assets/
 │   ├── audio/               # Audio-related scripts
 │   │   ├── kawaii-audio.sh  # Core audio integration system
 │   │   └── kawaii-auth-demo.sh # Authentication demo with audio
+│   ├── system/              # System-level utilities
+│   │   ├── kawaii-plymouth.py # Plymouth boot theme generator
+│   │   └── demo-plymouth.py # Plymouth theme demonstration
 │   └── tools/               # System tools and utilities
 │       ├── pinkmap.sh       # Kawaii nmap wrapper
 │       ├── animefetch.sh    # System info display
 │       └── detect-zsh-setup.sh # Shell setup detection
 └── themes/                  # 🎭 Visual themes and customizations
+    ├── boot/                # Plymouth boot splash themes
+    │   ├── kawaiisec/       # Default KawaiiSec boot theme
+    │   ├── requirements.txt # Python dependencies for theme generation
+    │   └── README.md        # Boot theme documentation
     └── terminal/            # Terminal themes and configs
         └── uwu.zsh-theme    # Kawaii ZSH theme with audio integration
 ```
@@ -79,6 +86,18 @@ cp assets/themes/terminal/uwu.zsh-theme ~/.oh-my-zsh/custom/themes/
 ZSH_THEME="uwu"
 ```
 
+### Boot Themes (Plymouth)
+```bash
+# Generate kawaii boot splash
+python3 assets/scripts/system/kawaii-plymouth.py --generate --color pink
+
+# Install theme (Linux only, requires root)
+sudo python3 assets/scripts/system/kawaii-plymouth.py --install
+
+# Demo all color schemes
+python3 assets/scripts/system/demo-plymouth.py
+```
+
 ## 🔧 Integration
 
 All scripts automatically detect and use the new asset locations:
@@ -91,9 +110,11 @@ All scripts automatically detect and use the new asset locations:
 
 - **🔊 Cross-platform audio system** (macOS, Linux, WSL)
 - **🎨 Organized graphics assets** (icons, logos, illustrations)
-- **🔧 Modular script architecture** (audio, tools separated)
+- **🔧 Modular script architecture** (audio, tools, system utilities)
 - **🎭 Themed terminal experience** with audio feedback
+- **🌸 Kawaii boot splash themes** with animated progress bars
 - **📱 Complete icon set** for web and mobile
+- **🐍 Python-based theme generators** for easy customization
 
 ## 📚 Documentation
 

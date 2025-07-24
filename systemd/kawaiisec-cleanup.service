@@ -1,0 +1,30 @@
+[Unit]
+Description=KawaiiSec System Cleanup Service
+Documentation=man:kawaiisec-cleanup(8)
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/kawaiisec-cleanup.sh
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=false
+ProtectHome=false
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+
+# Resource limits
+TimeoutStartSec=1800
+CPUQuota=30%
+MemoryLimit=256M
+
+[Install]
+WantedBy=multi-user.target 

@@ -1,0 +1,13 @@
+[Unit]
+Description=KawaiiSec Daily System Cleanup Timer
+Documentation=man:kawaiisec-cleanup(8)
+Requires=kawaiisec-cleanup.service
+
+[Timer]
+OnCalendar=daily
+AccuracySec=1h
+Persistent=true
+RandomizedDelaySec=2h
+
+[Install]
+WantedBy=timers.target 

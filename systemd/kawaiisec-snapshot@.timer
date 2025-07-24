@@ -1,0 +1,13 @@
+[Unit]
+Description=KawaiiSec Daily Snapshot Timer for %i
+Documentation=man:kawaiisec-snapshot(8)
+Requires=kawaiisec-snapshot@%i.service
+
+[Timer]
+OnCalendar=daily
+AccuracySec=1h
+Persistent=true
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target 

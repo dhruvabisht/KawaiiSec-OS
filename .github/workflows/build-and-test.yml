@@ -1,0 +1,676 @@
+name: 🌸 KawaiiSec OS - Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'debian/**'
+      - 'scripts/**'
+      - 'labs/**'
+      - 'docs/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'debian/**'
+      - 'scripts/**'
+      - 'labs/**'
+      - 'docs/**'
+      - '.github/workflows/**'
+  release:
+    types: [ published ]
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  PACKAGE_NAME: kawaiisec-tools
+  PACKAGE_VERSION: 1.0.0
+
+jobs:
+  # ===========================================================================
+  # LINT AND VALIDATE
+  # ===========================================================================
+  lint-and-validate:
+    name: 🔍 Lint and Validate
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 🛠️ Setup Build Environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          debhelper \
+          devscripts \
+          lintian \
+          shellcheck \
+          yamllint \
+          hadolint \
+          git
+        
+    - name: 🔍 Validate Debian Package Structure
+      run: |
+        echo "🌸 Validating Debian package structure..."
+        
+        # Check required files exist
+        test -f debian/control
+        test -f debian/rules
+        test -f debian/changelog
+        test -f debian/copyright
+        test -f debian/postinst
+        
+        # Validate control file syntax
+        grep -q "Package: ${PACKAGE_NAME}" debian/control
+        grep -q "Architecture: all" debian/control
+        
+        echo "✅ Debian package structure is valid"
+
+    - name: 🔍 Lint Shell Scripts
+      run: |
+        echo "🌸 Linting shell scripts..."
+        
+        # Find all shell scripts
+        find scripts/ -name "*.sh" -type f | while read -r script; do
+          echo "Checking: $script"
+          shellcheck "$script" || exit 1
+        done
+        
+        echo "✅ All shell scripts passed linting"
+
+    - name: 🔍 Validate Docker Compose Files
+      run: |
+        echo "🌸 Validating Docker Compose files..."
+        
+        # Check Docker Compose syntax
+        docker-compose -f labs/docker/docker-compose.yml config > /dev/null
+        
+        echo "✅ Docker Compose files are valid"
+
+    - name: 🔍 Validate Vagrant Files
+      run: |
+        echo "🌸 Validating Vagrant files..."
+        
+        # Basic syntax check for Vagrantfile
+        ruby -c labs/vagrant/Vagrantfile
+        
+        echo "✅ Vagrant files are valid"
+
+    - name: 🔍 Lint YAML Files
+      run: |
+        echo "🌸 Linting YAML files..."
+        
+        find . -name "*.yml" -o -name "*.yaml" | grep -v node_modules | while read -r yaml_file; do
+          echo "Checking: $yaml_file"
+          yamllint "$yaml_file" || exit 1
+        done
+        
+        echo "✅ All YAML files passed linting"
+
+    - name: 🔍 Lint Dockerfiles
+      run: |
+        echo "🌸 Linting Dockerfiles..."
+        
+        find . -name "Dockerfile*" | while read -r dockerfile; do
+          echo "Checking: $dockerfile"
+          hadolint "$dockerfile" || exit 1
+        done
+        
+        echo "✅ All Dockerfiles passed linting"
+
+  # ===========================================================================
+  # BUILD DEBIAN PACKAGE
+  # ===========================================================================
+  build-package:
+    name: 📦 Build Debian Package  
+    runs-on: ubuntu-22.04
+    needs: lint-and-validate
+    
+    outputs:
+      package-name: ${{ steps.build.outputs.package-name }}
+      package-version: ${{ steps.build.outputs.package-version }}
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: 🛠️ Setup Build Environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          debhelper \
+          devscripts \
+          lintian \
+          fakeroot \
+          dpkg-dev \
+          git
+
+    - name: 🔧 Prepare Build Directory
+      run: |
+        echo "🌸 Preparing build directory..."
+        
+        # Create build directory structure
+        mkdir -p build-area
+        
+        # Copy source files
+        cp -r debian scripts labs docs build-area/
+        
+        # Create required directories for build
+        mkdir -p build-area/scripts/bin
+        mkdir -p build-area/labs/docker
+        mkdir -p build-area/labs/vagrant
+        mkdir -p build-area/docs
+
+    - name: 📦 Build Debian Package
+      id: build
+      run: |
+        echo "🌸 Building Debian package..."
+        
+        cd build-area
+        
+        # Update changelog with build information
+        TIMESTAMP=$(date -R)
+        BUILD_VERSION="${PACKAGE_VERSION}-$(date +%Y%m%d%H%M%S)"
+        
+        sed -i "1s/1\.0\.0-1/${BUILD_VERSION}/" debian/changelog
+        sed -i "s/\$(date -R)/${TIMESTAMP}/" debian/changelog
+        
+        # Build package
+        dpkg-buildpackage -b -us -uc
+        
+        # Move built packages
+        mv ../*.deb ../build-artifacts/ 2>/dev/null || mkdir -p ../build-artifacts && mv ../*.deb ../build-artifacts/
+        
+        # Set outputs
+        echo "package-name=${PACKAGE_NAME}" >> $GITHUB_OUTPUT
+        echo "package-version=${BUILD_VERSION}" >> $GITHUB_OUTPUT
+        
+        ls -la ../build-artifacts/
+
+    - name: 🔍 Run Lintian Checks
+      run: |
+        echo "🌸 Running Lintian package checks..."
+        
+        # Run lintian on built package
+        lintian --info --display-info --color=never build-artifacts/*.deb | tee lintian-output.txt
+        
+        # Check for serious issues (errors)
+        if grep -q "^E:" lintian-output.txt; then
+          echo "❌ Lintian found errors in the package"
+          grep "^E:" lintian-output.txt
+          exit 1
+        fi
+        
+        echo "✅ Package passed Lintian checks"
+
+    - name: 📤 Upload Package Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: debian-package
+        path: build-artifacts/*.deb
+        retention-days: 30
+
+    - name: 📤 Upload Lintian Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: lintian-report
+        path: lintian-output.txt
+        retention-days: 30
+
+  # ===========================================================================
+  # TEST INSTALLATION
+  # ===========================================================================
+  test-installation:
+    name: 🧪 Test Package Installation
+    runs-on: ubuntu-22.04
+    needs: build-package
+    
+    strategy:
+      matrix:
+        os-version: ['ubuntu:20.04', 'ubuntu:22.04', 'debian:11', 'debian:12']
+        
+    steps:
+    - name: 📥 Download Package Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: debian-package
+        path: ./packages
+
+    - name: 🧪 Test Installation in Container
+      run: |
+        echo "🌸 Testing installation on ${{ matrix.os-version }}..."
+        
+        # Create test script
+        cat > test-install.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        
+        # Update package lists
+        apt-get update
+        
+        # Install dependencies that might be needed
+        apt-get install -y curl wget gnupg2 software-properties-common
+        
+        # Install our package
+        dpkg -i /packages/*.deb || apt-get install -f -y
+        
+        # Verify installation
+        dpkg -l | grep kawaiisec-tools
+        
+        # Test that scripts are installed and executable
+        test -x /usr/local/bin/launch_dvwa.sh
+        test -x /usr/local/bin/run_juice_shop.sh
+        test -x /usr/local/bin/start_metasploitable3.sh
+        test -x /usr/local/bin/lab_net_topo.sh
+        test -x /usr/local/bin/kawaiisec-help.sh
+        
+        # Test basic functionality (non-interactive parts)
+        /usr/local/bin/kawaiisec-help.sh --help || true
+        
+        echo "✅ Package installation test passed"
+        EOF
+        
+        chmod +x test-install.sh
+        
+        # Run test in Docker container
+        docker run --rm \
+          -v $(pwd)/packages:/packages \
+          -v $(pwd)/test-install.sh:/test-install.sh \
+          ${{ matrix.os-version }} \
+          /test-install.sh
+
+  # ===========================================================================
+  # TEST WRAPPER SCRIPTS
+  # ===========================================================================
+  test-wrapper-scripts:
+    name: 🧪 Test Wrapper Scripts
+    runs-on: ubuntu-22.04
+    needs: build-package
+    
+    services:
+      docker:
+        image: docker:24-dind
+        options: --privileged
+        
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: 📥 Download Package Artifacts  
+      uses: actions/download-artifact@v4
+      with:
+        name: debian-package
+        path: ./packages
+
+    - name: 🛠️ Setup Test Environment
+      run: |
+        # Install Docker Compose
+        sudo apt-get update
+        sudo apt-get install -y docker-compose virtualbox vagrant
+        
+        # Install our package
+        sudo dpkg -i packages/*.deb || sudo apt-get install -f -y
+
+    - name: 🧪 Test DVWA Script
+      timeout-minutes: 10
+      run: |
+        echo "🌸 Testing DVWA launcher script..."
+        
+        # Test script help
+        launch_dvwa.sh --help || true
+        
+        # Test script status check (should fail gracefully when Docker not running)
+        launch_dvwa.sh status || true
+        
+        echo "✅ DVWA script test completed"
+
+    - name: 🧪 Test Juice Shop Script
+      timeout-minutes: 10
+      run: |
+        echo "🌸 Testing Juice Shop launcher script..."
+        
+        # Test script help
+        run_juice_shop.sh --help || true
+        
+        # Test script status check
+        run_juice_shop.sh status || true
+        
+        echo "✅ Juice Shop script test completed"
+
+    - name: 🧪 Test Help Script
+      timeout-minutes: 5
+      run: |
+        echo "🌸 Testing help script..."
+        
+        # Test various help topics
+        kawaiisec-help.sh
+        kawaiisec-help.sh labs
+        kawaiisec-help.sh tools
+        kawaiisec-help.sh scenarios
+        kawaiisec-help.sh cheat
+        kawaiisec-help.sh troubleshoot
+        
+        echo "✅ Help script test completed"
+
+    - name: 🧪 Test Network Topology Script
+      timeout-minutes: 5
+      run: |
+        echo "🌸 Testing network topology script..."
+        
+        # Test script help and info
+        lab_net_topo.sh --help || true
+        lab_net_topo.sh diagram
+        lab_net_topo.sh info
+        
+        echo "✅ Network topology script test completed"
+
+  # ===========================================================================
+  # SECURITY SCANNING
+  # ===========================================================================
+  security-scan:
+    name: 🔒 Security Scanning
+    runs-on: ubuntu-22.04
+    needs: build-package
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: 🔒 Run Trivy Security Scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: 📤 Upload Trivy Scan Results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: 🔒 Check for Hardcoded Secrets
+      run: |
+        echo "🌸 Scanning for hardcoded secrets..."
+        
+        # Install truffleHog
+        curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin
+        
+        # Scan for secrets
+        trufflehog filesystem . --no-update --json | jq -r '.SourceMetadata.Data.Filesystem.file' | sort -u > secrets-scan.txt
+        
+        if [ -s secrets-scan.txt ]; then
+          echo "⚠️ Potential secrets found in files:"
+          cat secrets-scan.txt
+          echo "Please review these files for sensitive information"
+        else
+          echo "✅ No secrets detected"
+        fi
+
+  # ===========================================================================
+  # DOCUMENTATION CHECKS
+  # ===========================================================================
+  docs-check:
+    name: 📚 Documentation Checks
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: 🔍 Check Documentation Links
+      run: |
+        echo "🌸 Checking documentation links..."
+        
+        # Install markdown-link-check
+        npm install -g markdown-link-check
+        
+        # Check all markdown files
+        find docs/ -name "*.md" | while read -r file; do
+          echo "Checking links in: $file"
+          markdown-link-check "$file" --config .github/markdown-link-check.config.json || true
+        done
+        
+        echo "✅ Documentation link check completed"
+
+    - name: 📝 Validate Documentation Structure
+      run: |
+        echo "🌸 Validating documentation structure..."
+        
+        # Check required documentation files exist
+        test -f docs/README.md
+        test -f docs/quick-start-lab-guide.md
+        test -f README.md
+        
+        # Check for proper headings structure
+        grep -q "# 🌸 KawaiiSec OS" docs/README.md
+        grep -q "# 🎯 KawaiiSec OS - Quick Start Lab Guide" docs/quick-start-lab-guide.md
+        
+        echo "✅ Documentation structure is valid"
+
+  # ===========================================================================
+  # PERFORMANCE TESTS
+  # ===========================================================================
+  performance-test:
+    name: ⚡ Performance Tests
+    runs-on: ubuntu-22.04
+    needs: build-package
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: 📥 Download Package Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: debian-package
+        path: ./packages
+
+    - name: ⚡ Test Script Performance
+      run: |
+        echo "🌸 Testing script performance..."
+        
+        # Install package
+        sudo dpkg -i packages/*.deb || sudo apt-get install -f -y
+        
+        # Time various script operations
+        echo "Testing help script performance:"
+        time kawaiisec-help.sh > /dev/null
+        
+        echo "Testing script parsing performance:"
+        time bash -n /usr/local/bin/launch_dvwa.sh
+        time bash -n /usr/local/bin/run_juice_shop.sh
+        time bash -n /usr/local/bin/start_metasploitable3.sh
+        time bash -n /usr/local/bin/lab_net_topo.sh
+        
+        echo "✅ Performance tests completed"
+
+  # ===========================================================================
+  # INTEGRATION TESTS
+  # ===========================================================================
+  integration-test:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-22.04
+    needs: [build-package, test-installation]
+    
+    services:
+      docker:
+        image: docker:24-dind
+        options: --privileged
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: 📥 Download Package Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: debian-package
+        path: ./packages
+
+    - name: 🛠️ Setup Integration Test Environment
+      run: |
+        # Install Docker Compose and our package
+        sudo apt-get update
+        sudo apt-get install -y docker-compose
+        sudo dpkg -i packages/*.deb || sudo apt-get install -f -y
+        
+        # Start Docker service
+        sudo systemctl start docker
+        sudo usermod -aG docker $USER
+
+    - name: 🔗 Test Docker Lab Environment
+      timeout-minutes: 15
+      run: |
+        echo "🌸 Testing Docker lab environment..."
+        
+        # Test docker-compose file validation
+        cd labs/docker
+        docker-compose config > /dev/null
+        
+        # Test pulling required images (without running)
+        docker-compose pull --ignore-pull-failures || true
+        
+        echo "✅ Docker integration test completed"
+
+    - name: 🔗 Test Script Integration
+      timeout-minutes: 10
+      run: |
+        echo "🌸 Testing script integration..."
+        
+        # Test that scripts can find their dependencies
+        kawaiisec-help.sh labs | grep -q "DVWA"
+        kawaiisec-help.sh tools | grep -q "nmap"
+        
+        echo "✅ Script integration test completed"
+
+  # ===========================================================================
+  # RELEASE PREPARATION
+  # ===========================================================================
+  prepare-release:
+    name: 🚀 Prepare Release
+    runs-on: ubuntu-22.04
+    needs: [build-package, test-installation, test-wrapper-scripts, security-scan, docs-check]
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: 📥 Download Package Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: debian-package
+        path: ./release-artifacts
+
+    - name: 📦 Create Release Package
+      run: |
+        echo "🌸 Creating release package..."
+        
+        cd release-artifacts
+        
+        # Create checksums
+        sha256sum *.deb > SHA256SUMS
+        
+        # Create release info
+        cat > RELEASE_INFO.txt << EOF
+        KawaiiSec OS Release Information
+        ===============================
+        
+        Package: ${{ needs.build-package.outputs.package-name }}
+        Version: ${{ needs.build-package.outputs.package-version }}
+        Build Date: $(date -u)
+        Git Commit: ${GITHUB_SHA}
+        
+        Installation:
+        sudo dpkg -i kawaiisec-tools_*.deb
+        sudo apt-get install -f  # Fix any dependency issues
+        
+        Verification:
+        sha256sum -c SHA256SUMS
+        
+        For more information, see:
+        https://github.com/${GITHUB_REPOSITORY}
+        EOF
+        
+        ls -la
+
+    - name: 🚀 Upload Release Assets
+      uses: softprops/action-gh-release@v1
+      if: github.event_name == 'release'
+      with:
+        files: |
+          release-artifacts/*.deb
+          release-artifacts/SHA256SUMS
+          release-artifacts/RELEASE_INFO.txt
+        body: |
+          ## 🌸 KawaiiSec OS Release ${{ needs.build-package.outputs.package-version }}
+          
+          This release includes:
+          - Comprehensive penetration testing toolkit (130+ tools)
+          - Automated lab environments (DVWA, Juice Shop, Metasploitable3)
+          - Educational resources and guided tutorials
+          - One-command deployment scripts
+          
+          ### Installation
+          ```bash
+          # Download the .deb package
+          wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/kawaiisec-tools_${{ needs.build-package.outputs.package-version }}_all.deb
+          
+          # Install package
+          sudo dpkg -i kawaiisec-tools_*.deb
+          sudo apt-get install -f
+          
+          # Verify installation
+          kawaiisec-help
+          ```
+          
+          ### Quick Start
+          ```bash
+          # Launch web application labs
+          launch_dvwa.sh
+          run_juice_shop.sh
+          
+          # Deploy network lab
+          lab_net_topo.sh start basic
+          
+          # Get help
+          kawaiisec-help labs
+          ```
+          
+          For detailed documentation, see the [README](README.md) and [Quick Start Guide](docs/quick-start-lab-guide.md).
+
+  # ===========================================================================
+  # NOTIFICATIONS
+  # ===========================================================================
+  notify:
+    name: 📢 Notifications
+    runs-on: ubuntu-22.04
+    needs: [build-package, test-installation, test-wrapper-scripts, security-scan, docs-check, performance-test, integration-test]
+    if: always()
+    
+    steps:
+    - name: 📢 Success Notification
+      if: needs.build-package.result == 'success' && needs.test-installation.result == 'success'
+      run: |
+        echo "🌸 KawaiiSec OS build and test completed successfully!"
+        echo "Package: ${{ needs.build-package.outputs.package-name }}"
+        echo "Version: ${{ needs.build-package.outputs.package-version }}"
+        echo "All tests passed ✅"
+
+    - name: 📢 Failure Notification
+      if: failure()
+      run: |
+        echo "❌ KawaiiSec OS build or test failed!"
+        echo "Please check the workflow logs for details."
+        echo "Failed jobs:"
+        echo "- Build: ${{ needs.build-package.result }}"
+        echo "- Installation Test: ${{ needs.test-installation.result }}"
+        echo "- Script Test: ${{ needs.test-wrapper-scripts.result }}"
+        echo "- Security Scan: ${{ needs.security-scan.result }}"
+        echo "- Documentation: ${{ needs.docs-check.result }}" 

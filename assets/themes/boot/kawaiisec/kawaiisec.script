@@ -1,0 +1,201 @@
+// 🌸 KawaiiSec OS Plymouth Boot Splash 🌸
+// Kawaii boot experience with cute progress animations
+
+// Load assets
+background_image = Image("background.png");
+logo_image = Image("logo.png");
+mascot_image = Image("mascot.png");
+
+// Animation state
+progress = 0.0;
+time = 0.0;
+pulse_phase = 0.0;
+
+// Kawaii messages for different boot stages
+boot_messages = [
+    "🌸 Starting KawaiiSec OS...",
+    "💖 Loading kawaii components...", 
+    "✨ Initializing security systems...",
+    "🎵 Setting up audio...",
+    "🛡️ Activating protection...",
+    "🌟 Almost ready nyaa~",
+    "🎉 Welcome to KawaiiSec OS!"
+];
+
+current_message = 0;
+message_timer = 0;
+
+// Cute particle system for sparkles
+particles = [];
+max_particles = 20;
+
+function create_particle(x, y) {
+    particle = [];
+    particle.x = x + (Math.Random() - 0.5) * 100;
+    particle.y = y + (Math.Random() - 0.5) * 50;
+    particle.vx = (Math.Random() - 0.5) * 2;
+    particle.vy = (Math.Random() - 0.5) * 2;
+    particle.life = 1.0;
+    particle.size = Math.Random() * 3 + 1;
+    return particle;
+}
+
+function update_particles(dt) {
+    for (i = 0; i < particles.GetLength(); i++) {
+        p = particles[i];
+        if (p) {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.life -= dt * 0.5;
+            
+            if (p.life <= 0) {
+                particles[i] = null;
+            }
+        }
+    }
+}
+
+function draw_particles() {
+    for (i = 0; i < particles.GetLength(); i++) {
+        p = particles[i];
+        if (p && p.life > 0) {
+            // Sparkle effect
+            alpha = p.life;
+            Window.SetSourceRGBA(1.0, 0.7, 0.8, alpha);
+            
+            // Draw sparkle as a small cross
+            size = p.size * p.life;
+            Window.DrawLine(p.x - size, p.y, p.x + size, p.y, 1);
+            Window.DrawLine(p.x, p.y - size, p.x, p.y + size, 1);
+        }
+    }
+}
+
+function draw_kawaii_progress_bar(x, y, width, height, progress_val) {
+    // Background bar with rounded edges (simulated)
+    Window.SetSourceRGBA(1.0, 1.0, 1.0, 0.8);
+    Window.FillRectangle(x, y, width, height);
+    
+    // Progress fill with pulsing effect
+    pulse = Math.Sin(pulse_phase) * 0.2 + 0.8;
+    fill_width = width * progress_val;
+    
+    if (fill_width > 0) {
+        Window.SetSourceRGBA(
+            1.0 * pulse, 
+            0.7 * pulse, 
+            0.8 * pulse, 
+            1.0
+        );
+        Window.FillRectangle(x, y, fill_width, height);
+        
+        // Add sparkles at the progress edge
+        if (Math.Random() < 0.3 && particles.GetLength() < max_particles) {
+            particles[particles.GetLength()] = create_particle(x + fill_width, y + height/2);
+        }
+    }
+    
+    // Cute border
+    Window.SetSourceRGBA(0.2, 0.1, 0.3, 0.5);
+    Window.DrawRectangle(x-1, y-1, width+2, height+2, 2);
+}
+
+function draw_kawaii_text(text, x, y, size) {
+    // Simple text rendering (Plymouth's text is basic)
+    Window.SetSourceRGBA(0.2, 0.1, 0.3, 0.9);
+    // Note: Plymouth text positioning is approximate
+    Window.WriteText(text, x, y);
+}
+
+function get_boot_message() {
+    stage = Math.Floor(progress * boot_messages.GetLength());
+    if (stage >= boot_messages.GetLength()) {
+        stage = boot_messages.GetLength() - 1;
+    }
+    return boot_messages[stage];
+}
+
+function refresh_callback() {
+    // Update timing
+    time += 0.05;  // Approximate frame time
+    pulse_phase += 0.1;
+    message_timer += 0.05;
+    
+    // Get current progress from Plymouth
+    progress = Plymouth.GetMode() == "boot" ? Plymouth.GetProgress() : 1.0;
+    if (progress == 0) progress = time * 0.1; // Fallback animation
+    if (progress > 1.0) progress = 1.0;
+    
+    // Update particles
+    update_particles(0.05);
+    
+    // Clear screen
+    Window.Clear();
+    
+    // Get screen dimensions
+    screen_width = Window.GetWidth();
+    screen_height = Window.GetHeight();
+    
+    // Draw background
+    if (background_image) {
+        bg_x = (screen_width - background_image.GetWidth()) / 2;
+        bg_y = (screen_height - background_image.GetHeight()) / 2;
+        background_image.Draw(bg_x, bg_y);
+    } else {
+        // Fallback gradient background
+        Window.SetSourceRGBA(1.0, 1.0, 1.0, 1.0);
+        Window.FillRectangle(0, 0, screen_width, screen_height);
+    }
+    
+    // Draw logo
+    if (logo_image) {
+        logo_x = (screen_width - logo_image.GetWidth()) / 2;
+        logo_y = screen_height * 0.3;
+        logo_image.Draw(logo_x, logo_y);
+    }
+    
+    // Draw mascot with cute bobbing animation
+    if (mascot_image) {
+        bob_offset = Math.Sin(time * 2) * 5;
+        mascot_x = screen_width * 0.85;
+        mascot_y = screen_height * 0.7 + bob_offset;
+        mascot_image.Draw(mascot_x, mascot_y);
+    }
+    
+    // Progress bar
+    bar_width = screen_width * 0.6;
+    bar_height = 20;
+    bar_x = (screen_width - bar_width) / 2;
+    bar_y = screen_height * 0.75;
+    
+    draw_kawaii_progress_bar(bar_x, bar_y, bar_width, bar_height, progress);
+    
+    // Boot message
+    message = get_boot_message();
+    text_x = screen_width * 0.5 - 100; // Approximate centering
+    text_y = bar_y + 40;
+    draw_kawaii_text(message, text_x, text_y, 16);
+    
+    // Progress percentage
+    percent_text = Math.Floor(progress * 100) + "%";
+    percent_x = screen_width * 0.5 - 20;
+    percent_y = bar_y - 25;
+    draw_kawaii_text(percent_text, percent_x, percent_y, 14);
+    
+    // Draw sparkle particles
+    draw_particles();
+}
+
+// Event handlers
+Plymouth.SetRefreshFunction(refresh_callback);
+
+// Password prompt styling (if needed)
+Plymouth.SetDisplayPasswordFunction(function(prompt, bullets) {
+    // Style password prompts with kawaii theme
+    Window.SetSourceRGBA(0.2, 0.1, 0.3, 1.0);
+    Window.WriteText(prompt, 50, Window.GetHeight() - 100);
+    Window.WriteText(bullets, 50, Window.GetHeight() - 80);
+});
+
+// Initial setup
+refresh_callback();

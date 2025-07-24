@@ -1,0 +1,43 @@
+# KawaiiSec OS Example /etc/fstab Configuration
+# This file shows how to configure storage management features
+
+# Standard partitions
+UUID=your-efi-uuid     /boot/efi   vfat    defaults,umask=0077                     0  1
+UUID=your-boot-uuid    /boot       ext4    defaults,nodev,nosuid,noexec            0  2
+UUID=your-root-uuid    /           btrfs   defaults,subvol=@,compress=zstd:1       0  0
+UUID=your-swap-uuid    none        swap    sw                                      0  0
+UUID=your-home-uuid    /home       btrfs   defaults,subvol=@home,compress=zstd:1,usrquota,grpquota  0  0
+
+# Btrfs subvolumes for snapshots
+UUID=your-root-uuid    /.snapshots btrfs   defaults,subvol=@snapshots              0  0
+UUID=your-home-uuid    /home/.snapshots btrfs defaults,subvol=@home-snapshots      0  0
+
+# Temporary filesystems
+tmpfs                  /tmp        tmpfs   defaults,noatime,mode=1777              0  0
+tmpfs                  /var/tmp    tmpfs   defaults,noatime,mode=1777              0  0
+
+# OverlayFS Configuration (commented out by default)
+# Uncomment and configure these lines to enable OverlayFS for immutable root
+
+# Base overlay filesystem mount
+# /dev/disk/by-label/kawaiisec-overlay  /mnt/overlay  ext4  defaults  0  0
+
+# OverlayFS mount (enables immutable root with writable overlay)
+# kawaiisec-overlay  /  overlay  defaults,lowerdir=/mnt/overlay/lower/mounted,upperdir=/mnt/overlay/upper,workdir=/mnt/overlay/work  0  0
+
+# Overlay component directories
+# /mnt/overlay/lower  /mnt/overlay/lower  none  bind,ro  0  0
+# /mnt/overlay/upper  /mnt/overlay/upper  none  bind     0  0
+# /mnt/overlay/work   /mnt/overlay/work   none  bind     0  0
+
+# Network filesystems (examples)
+# nfs-server:/path/to/labs  /opt/labs  nfs  defaults,_netdev  0  0
+# //smb-server/share       /mnt/shared cifs defaults,username=user,password=pass,_netdev  0  0
+
+# Additional mount options reference:
+# compress=zstd:1     - Enable Btrfs compression (levels 1-15, 1 is fastest)
+# usrquota,grpquota   - Enable user and group quotas
+# noatime             - Don't update access times (performance improvement)
+# nodev,nosuid,noexec - Security options for non-root filesystems
+# subvol=@            - Mount specific Btrfs subvolume
+# _netdev             - Wait for network before mounting network filesystems 

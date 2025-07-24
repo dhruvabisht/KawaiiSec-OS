@@ -1,0 +1,30 @@
+[Unit]
+Description=KawaiiSec Btrfs Snapshot Service for %i
+Documentation=man:kawaiisec-snapshot(8)
+ConditionPathExists=/usr/local/bin/kawaiisec-snapshot.sh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/kawaiisec-snapshot.sh create %i
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=false
+ProtectHome=false
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+
+# Resource limits
+TimeoutStartSec=300
+CPUQuota=50%
+MemoryLimit=512M
+
+[Install]
+WantedBy=multi-user.target 

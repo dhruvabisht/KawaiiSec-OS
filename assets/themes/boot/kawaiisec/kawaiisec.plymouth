@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=KawaiiSec OS
+Description=Kawaii pastel boot splash for KawaiiSec OS with cute progress bar
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/kawaiisec
+ScriptFile=/usr/share/plymouth/themes/kawaiisec/kawaiisec.script

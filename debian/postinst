@@ -1,0 +1,102 @@
+#!/bin/bash
+
+set -e
+
+case "$1" in
+    configure)
+        echo "Configuring KawaiiSec Tools..."
+        
+        # Add kawaiisec user to necessary groups
+        if id "kawaiisec" &>/dev/null; then
+            usermod -aG docker,wireshark,vboxusers kawaiisec 2>/dev/null || true
+        fi
+        
+        # Enable and start Docker service
+        systemctl enable docker 2>/dev/null || true
+        systemctl start docker 2>/dev/null || true
+        
+        # Create kawaiisec directories
+        mkdir -p /opt/kawaiisec/{labs,tools,logs}
+        chmod 755 /opt/kawaiisec/{labs,tools,logs}
+        
+        # Set up lab environment directories
+        mkdir -p /opt/kawaiisec/labs/{docker,vagrant,scripts}
+        
+        # Copy lab configurations
+        if [ -d /usr/share/kawaiisec/labs ]; then
+            cp -r /usr/share/kawaiisec/labs/* /opt/kawaiisec/labs/
+        fi
+        
+        # Make scripts executable
+        chmod +x /usr/local/bin/launch_*.sh 2>/dev/null || true
+        chmod +x /usr/local/bin/run_*.sh 2>/dev/null || true
+        chmod +x /usr/local/bin/start_*.sh 2>/dev/null || true
+        
+        # Pull required Docker images in background (non-blocking)
+        {
+            docker pull vulnerables/web-dvwa:latest 2>/dev/null || true
+            docker pull bkimminich/juice-shop:latest 2>/dev/null || true
+            docker pull postgres:13 2>/dev/null || true
+        } &
+        
+        # Update desktop database for GUI tools
+        update-desktop-database 2>/dev/null || true
+        
+        # Set up Metasploit database if not already configured
+        if [ ! -f /opt/metasploit-framework/config/database.yml ]; then
+            echo "Setting up Metasploit database..."
+            msfdb init 2>/dev/null || true
+        fi
+        
+        # Enable first-boot wizard service
+        if [ -f /etc/systemd/system/kawaiisec-firstboot.service ]; then
+            systemctl enable kawaiisec-firstboot.service 2>/dev/null || true
+            echo "First-boot wizard service enabled"
+        fi
+        
+        # Enable snapshot timers for root and home
+        if [ -f /etc/systemd/system/kawaiisec-snapshot@.timer ]; then
+            systemctl enable kawaiisec-snapshot@root.timer 2>/dev/null || true
+            systemctl enable kawaiisec-snapshot@home.timer 2>/dev/null || true
+            systemctl start kawaiisec-snapshot@root.timer 2>/dev/null || true
+            systemctl start kawaiisec-snapshot@home.timer 2>/dev/null || true
+            echo "Snapshot timers enabled"
+        fi
+        
+        # Enable cleanup timer
+        if [ -f /etc/systemd/system/kawaiisec-cleanup.timer ]; then
+            systemctl enable kawaiisec-cleanup.timer 2>/dev/null || true
+            systemctl start kawaiisec-cleanup.timer 2>/dev/null || true
+            echo "Cleanup timer enabled"
+        fi
+        
+        # Create KawaiiSec configuration directory
+        mkdir -p /etc/kawaiisec
+        chmod 755 /etc/kawaiisec
+        
+        # Make all KawaiiSec scripts executable
+        chmod +x /usr/local/bin/kawaiisec-*.sh 2>/dev/null || true
+        
+        echo "KawaiiSec Tools installation completed!"
+        echo "Run 'kawaiisec-help' for usage information."
+        echo ""
+        echo "New features enabled:"
+        echo "  - First-boot wizard (runs on first system startup)"
+        echo "  - Automated Btrfs snapshots (daily, 7-day retention)"
+        echo "  - System cleanup automation (daily maintenance)"
+        echo "  - Disk quota management"
+        echo "  - OverlayFS support for immutable root"
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0 
