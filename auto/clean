@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# KawaiiSec OS Live-Build Clean Script
+# Cleans previous build artifacts for fresh ISO generation
+
+set -e
+
+echo "🧹 Cleaning previous KawaiiSec OS build artifacts..."
+
+# Clean live-build artifacts
+lb clean noauto "${@}"
+
+# Clean additional artifacts
+rm -rf .build/
+rm -rf binary/
+rm -rf chroot/
+rm -rf cache/
+rm -f *.iso
+rm -f *.img
+rm -f *.log
+
+echo "✅ Build environment cleaned successfully" 

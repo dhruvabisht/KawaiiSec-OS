@@ -1,0 +1,31 @@
+# KawaiiSec OS Account Whitelist
+# Accounts listed here will NOT be removed during cleanup
+# One account name per line
+# Lines starting with # are comments
+
+# Example legitimate accounts that should be preserved:
+# instructor
+# teacher
+# admin-real
+# staff
+# kawaiisec-admin
+# security-team
+# courseware
+# faculty
+
+# System accounts that might match suspicious patterns but are legitimate:
+# (These are examples - uncomment and customize for your environment)
+
+# Educational/Training Environment Examples:
+# training-admin
+# lab-coordinator  
+# demo-instructor
+# test-supervisor
+
+# Production/Organizational Examples:
+# user-support
+# admin-backup
+# guest-wifi-admin
+
+# Add your legitimate accounts below this line:
+# (Remove the # to uncomment and activate an account) 

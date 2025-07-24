@@ -1,0 +1,129 @@
+#!/bin/bash
+
+# KawaiiSec OS Branding Hook
+# Applies custom branding and assets during ISO build
+
+set -e
+
+echo "🌸 Applying KawaiiSec OS branding..."
+
+# Copy assets from the build environment to chroot
+if [ -d "/tmp/build-assets" ]; then
+    echo "📁 Copying assets to chroot environment..."
+    
+    # Copy wallpapers
+    if [ -d "/tmp/build-assets/kawaiisec-docs/res/Wallpapers" ]; then
+        mkdir -p /usr/share/kawaiisec/res/Wallpapers
+        cp -r /tmp/build-assets/kawaiisec-docs/res/Wallpapers/* /usr/share/kawaiisec/res/Wallpapers/ || true
+        chmod -R 644 /usr/share/kawaiisec/res/Wallpapers/*
+    fi
+    
+    # Copy logos and graphics
+    if [ -d "/tmp/build-assets/assets/graphics" ]; then
+        mkdir -p /usr/share/kawaiisec/assets/graphics
+        cp -r /tmp/build-assets/assets/graphics/* /usr/share/kawaiisec/assets/graphics/ || true
+        chmod -R 644 /usr/share/kawaiisec/assets/graphics/*
+    fi
+    
+    # Copy audio assets
+    if [ -d "/tmp/build-assets/assets/audio" ]; then
+        mkdir -p /usr/share/kawaiisec/assets/audio
+        cp -r /tmp/build-assets/assets/audio/* /usr/share/kawaiisec/assets/audio/ || true
+        chmod -R 644 /usr/share/kawaiisec/assets/audio/*
+    fi
+    
+    # Copy themes
+    if [ -d "/tmp/build-assets/assets/themes" ]; then
+        mkdir -p /usr/share/kawaiisec/assets/themes
+        cp -r /tmp/build-assets/assets/themes/* /usr/share/kawaiisec/assets/themes/ || true
+        chmod -R 644 /usr/share/kawaiisec/assets/themes/*
+    fi
+fi
+
+# Set up branding directories
+echo "🎨 Setting up branding directories..."
+mkdir -p /usr/share/backgrounds/kawaiisec
+mkdir -p /usr/share/icons/kawaiisec
+mkdir -p /usr/share/pixmaps/kawaiisec
+
+# Create default wallpaper if none exists
+if [ ! -f /usr/share/backgrounds/kawaiisec/default.png ]; then
+    # Create a simple gradient wallpaper using ImageMagick if available
+    if command -v convert >/dev/null 2>&1; then
+        convert -size 1920x1080 gradient:'#FFB6C1-#E6E6FA' /usr/share/backgrounds/kawaiisec/default.png || true
+    fi
+fi
+
+# Configure Plymouth boot theme if available
+if [ -d /usr/share/kawaiisec/assets/themes/boot/kawaiisec ]; then
+    echo "🚀 Installing Plymouth boot theme..."
+    cp -r /usr/share/kawaiisec/assets/themes/boot/kawaiisec /usr/share/plymouth/themes/ || true
+    
+    # Set as default theme
+    if [ -f /usr/share/plymouth/themes/kawaiisec/kawaiisec.plymouth ]; then
+        plymouth-set-default-theme kawaiisec || true
+        update-initramfs -u || true
+    fi
+fi
+
+# Set up GRUB theming
+echo "⚙️  Configuring GRUB theme..."
+if [ -f /etc/default/grub ]; then
+    # Update GRUB configuration for quiet boot with splash
+    sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& quiet splash/' /etc/default/grub || true
+    
+    # Set KawaiiSec branding
+    cat >> /etc/default/grub << 'EOF'
+
+# KawaiiSec OS Branding
+GRUB_DISTRIBUTOR="KawaiiSec OS"
+GRUB_TIMEOUT=10
+GRUB_BACKGROUND="/usr/share/backgrounds/kawaiisec/default.png"
+EOF
+fi
+
+# Configure system branding files
+echo "📝 Setting up system information..."
+
+# Update issue files
+cat > /etc/issue << 'EOF'
+🌸 KawaiiSec OS \r \l
+
+Welcome to KawaiiSec OS - Kawaii Cybersecurity Distribution
+For help and documentation, visit: https://kawaiisec.org
+
+EOF
+
+cat > /etc/issue.net << 'EOF'
+🌸 KawaiiSec OS
+
+Welcome to KawaiiSec OS - Kawaii Cybersecurity Distribution
+For help and documentation, visit: https://kawaiisec.org
+
+Unauthorized access is prohibited.
+EOF
+
+# Update motd
+cat > /etc/motd << 'EOF'
+
+    ╭─────────────────────────────────────────╮
+    │        🌸 Welcome to KawaiiSec OS 🌸    │
+    │     Kawaii Cybersecurity Distribution   │
+    ╰─────────────────────────────────────────╯
+
+    📚 Documentation: https://kawaiisec.org/docs
+    🛠️  Tools: Run 'kawaiisec-help.sh' for available tools
+    🧪 Labs: Check ~/Labs for vulnerable environments
+    
+    💖 Happy hacking with kawaii vibes! 💖
+
+EOF
+
+# Set correct permissions
+chmod 644 /etc/issue /etc/issue.net /etc/motd
+
+# Enable firstboot service
+echo "🚀 Enabling first boot setup service..."
+systemctl enable kawaiisec-firstboot.service || true
+
+echo "✅ KawaiiSec OS branding applied successfully!" 

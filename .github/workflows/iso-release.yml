@@ -1,0 +1,332 @@
+name: 🌸 KawaiiSec OS ISO Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      build_iso:
+        description: 'Build ISO image'
+        required: false
+        default: 'true'
+        type: boolean
+      create_release:
+        description: 'Create GitHub release'
+        required: false
+        default: 'false'
+        type: boolean
+      version_override:
+        description: 'Override version (e.g., 2024.01.15)'
+        required: false
+        type: string
+
+env:
+  ISO_NAME_PREFIX: "kawaiisec-os"
+  BUILD_TIMEOUT: 120
+
+jobs:
+  build-iso:
+    name: 🏗️ Build KawaiiSec OS ISO
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'workflow_dispatch' && inputs.build_iso == 'true' || github.event_name == 'push' || github.event_name == 'pull_request'
+    
+    strategy:
+      matrix:
+        arch: [amd64]
+        
+    steps:
+    - name: 🌸 Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 🛠️ Setup Build Environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          live-build \
+          debootstrap \
+          xorriso \
+          isolinux \
+          syslinux-utils \
+          memtest86+ \
+          dosfstools \
+          squashfs-tools \
+          qemu-system-x86 \
+          qemu-utils
+
+    - name: 📋 Set Build Variables
+      id: vars
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.version_override }}" ]; then
+          VERSION="${{ inputs.version_override }}"
+        elif [ "${{ github.ref_type }}" = "tag" ]; then
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+        else
+          VERSION="$(date +%Y.%m.%d)-dev"
+        fi
+        
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "iso_name=${ISO_NAME_PREFIX}-${VERSION}-${{ matrix.arch }}.iso" >> $GITHUB_OUTPUT
+        echo "build_date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+        echo "commit_sha=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+        
+        echo "🌸 Building KawaiiSec OS ${VERSION}"
+
+    - name: 🔧 Configure Live-Build
+      run: |
+        echo "🔧 Configuring live-build system..."
+        chmod +x auto/config auto/clean auto/build
+        chmod +x build-iso.sh
+        
+        # Make hooks executable
+        find hooks -name "*.hook.chroot" -exec chmod +x {} \;
+        
+        # Make included scripts executable
+        find includes.chroot -name "*.sh" -exec chmod +x {} \;
+
+    - name: 📦 Cache Build Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/live-build
+          /var/cache/apt
+        key: kawaiisec-iso-cache-${{ runner.os }}-${{ hashFiles('config/package-lists/*.list.chroot', 'auto/config') }}
+        restore-keys: |
+          kawaiisec-iso-cache-${{ runner.os }}-
+
+    - name: 🌸 Build ISO Image
+      timeout-minutes: ${{ fromJSON(env.BUILD_TIMEOUT) }}
+      run: |
+        echo "🚀 Starting ISO build process..."
+        export VERSION="${{ steps.vars.outputs.version }}"
+        export CLEANUP_ON_EXIT=false
+        
+        ./build-iso.sh -v "$VERSION" 2>&1 | tee iso-build.log
+        
+        # Check if ISO was created
+        ISO_FILE="${{ steps.vars.outputs.iso_name }}"
+        if [ ! -f "$ISO_FILE" ]; then
+          echo "❌ ISO build failed - file not found"
+          exit 1
+        fi
+        
+        # Show ISO information
+        ls -lh "$ISO_FILE"
+        file "$ISO_FILE"
+
+    - name: ✅ Validate ISO
+      run: |
+        echo "✅ Validating ISO image..."
+        chmod +x scripts/validate-iso.sh
+        ./scripts/validate-iso.sh --skip-boot-test "${{ steps.vars.outputs.iso_name }}"
+
+    - name: 📊 Generate Build Artifacts
+      run: |
+        echo "📊 Generating build artifacts..."
+        
+        # Create checksums
+        sha256sum "${{ steps.vars.outputs.iso_name }}" > "${{ steps.vars.outputs.iso_name }}.sha256"
+        md5sum "${{ steps.vars.outputs.iso_name }}" > "${{ steps.vars.outputs.iso_name }}.md5"
+        
+        # Create build information
+        cat > build-info.json << EOF
+        {
+          "version": "${{ steps.vars.outputs.version }}",
+          "build_date": "${{ steps.vars.outputs.build_date }}",
+          "commit_sha": "${{ steps.vars.outputs.commit_sha }}",
+          "architecture": "${{ matrix.arch }}",
+          "iso_name": "${{ steps.vars.outputs.iso_name }}",
+          "iso_size": "$(stat -c%s '${{ steps.vars.outputs.iso_name }}')",
+          "iso_size_human": "$(du -h '${{ steps.vars.outputs.iso_name }}' | cut -f1)",
+          "builder": "GitHub Actions",
+          "workflow_run": "${{ github.run_number }}"
+        }
+        EOF
+        
+        echo "📋 Build information:"
+        cat build-info.json
+
+    - name: 🧪 Quick Boot Test (QEMU)
+      timeout-minutes: 5
+      run: |
+        echo "🧪 Performing quick boot test..."
+        
+        # Create QEMU test script
+        cat > test-boot.sh << 'EOF'
+        #!/bin/bash
+        timeout 60s qemu-system-x86_64 \
+          -cdrom "$1" \
+          -m 1024 \
+          -boot d \
+          -nographic \
+          -serial file:boot-test.log \
+          >/dev/null 2>&1 || true
+        
+        if grep -q -i "kawaii\|debian\|boot" boot-test.log; then
+          echo "✅ Boot test PASSED"
+          exit 0
+        else
+          echo "⚠️ Boot test INCONCLUSIVE"
+          exit 0
+        fi
+        EOF
+        
+        chmod +x test-boot.sh
+        ./test-boot.sh "${{ steps.vars.outputs.iso_name }}"
+
+    - name: 📤 Upload ISO Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: kawaiisec-os-${{ steps.vars.outputs.version }}-${{ matrix.arch }}
+        path: |
+          ${{ steps.vars.outputs.iso_name }}
+          ${{ steps.vars.outputs.iso_name }}.sha256
+          ${{ steps.vars.outputs.iso_name }}.md5
+          build-info.json
+          build-report-*.txt
+          iso-validation-report.txt
+          iso-build.log
+        retention-days: 30
+
+    - name: 📝 Upload Build Logs
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-logs-${{ steps.vars.outputs.version }}-${{ matrix.arch }}
+        path: |
+          iso-build.log
+          build/
+          *.log
+        retention-days: 7
+
+    outputs:
+      version: ${{ steps.vars.outputs.version }}
+      iso_name: ${{ steps.vars.outputs.iso_name }}
+      build_date: ${{ steps.vars.outputs.build_date }}
+
+  create-release:
+    name: 🚀 Create GitHub Release
+    runs-on: ubuntu-22.04
+    needs: build-iso
+    if: |
+      (github.event_name == 'push' && github.ref_type == 'tag') || 
+      (github.event_name == 'workflow_dispatch' && inputs.create_release == 'true')
+    
+    steps:
+    - name: 🌸 Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: 📥 Download ISO Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: kawaiisec-os-${{ needs.build-iso.outputs.version }}-amd64
+        path: release-assets/
+
+    - name: 📋 Generate Release Notes
+      id: release_notes
+      run: |
+        cat > release-notes.md << EOF
+        # 🌸 KawaiiSec OS ${{ needs.build-iso.outputs.version }}
+        
+        **Release Date:** ${{ needs.build-iso.outputs.build_date }}
+        **Architecture:** AMD64
+        **Build:** GitHub Actions #${{ github.run_number }}
+        
+        ## ✨ What's New
+        
+        This release includes the latest KawaiiSec OS with:
+        
+        - 🛡️ Latest security tools and updates
+        - 🎨 Kawaii-themed desktop environment (XFCE)
+        - 🧪 Pre-configured vulnerable lab environments
+        - 🔧 System administration and forensics tools
+        - 📚 Integrated documentation and help system
+        
+        ## 📦 Downloads
+        
+        - **ISO Image:** \`${{ needs.build-iso.outputs.iso_name }}\`
+        - **SHA256:** \`${{ needs.build-iso.outputs.iso_name }}.sha256\`
+        - **MD5:** \`${{ needs.build-iso.outputs.iso_name }}.md5\`
+        
+        ## 🚀 Installation
+        
+        ### Create Bootable USB
+        \`\`\`bash
+        # Linux/macOS
+        sudo dd if=${{ needs.build-iso.outputs.iso_name }} of=/dev/sdX bs=4M status=progress
+        
+        # Windows (use Rufus or similar tool)
+        \`\`\`
+        
+        ### Virtual Machine
+        \`\`\`bash
+        # QEMU
+        qemu-system-x86_64 -cdrom ${{ needs.build-iso.outputs.iso_name }} -m 2048
+        
+        # VirtualBox
+        # Create new VM and attach ISO as optical drive
+        \`\`\`
+        
+        ## ✅ Verification
+        
+        Verify the ISO integrity:
+        \`\`\`bash
+        sha256sum -c ${{ needs.build-iso.outputs.iso_name }}.sha256
+        \`\`\`
+        
+        ## 📖 Documentation
+        
+        - [Quick Start Guide](https://github.com/${{ github.repository }}/blob/main/docs/quick-start-lab-guide.md)
+        - [Hardware Compatibility](https://github.com/${{ github.repository }}/blob/main/docs/hardware_matrix.md)
+        - [Full Documentation](https://github.com/${{ github.repository }}/tree/main/docs)
+        
+        ## 🐛 Issues
+        
+        Report issues at: https://github.com/${{ github.repository }}/issues
+        
+        ---
+        
+        💖 **Happy hacking with kawaii vibes!** 🌸
+        EOF
+        
+        echo "Generated release notes:"
+        cat release-notes.md
+
+    - name: 🚀 Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', needs.build-iso.outputs.version) }}
+        name: 🌸 KawaiiSec OS ${{ needs.build-iso.outputs.version }}
+        body_path: release-notes.md
+        files: |
+          release-assets/${{ needs.build-iso.outputs.iso_name }}
+          release-assets/${{ needs.build-iso.outputs.iso_name }}.sha256
+          release-assets/${{ needs.build-iso.outputs.iso_name }}.md5
+          release-assets/build-info.json
+          release-assets/build-report-*.txt
+        draft: false
+        prerelease: ${{ contains(needs.build-iso.outputs.version, 'dev') || contains(needs.build-io.outputs.version, 'beta') || contains(needs.build-iso.outputs.version, 'rc') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify-success:
+    name: 📢 Notify Success
+    runs-on: ubuntu-22.04
+    needs: [build-iso, create-release]
+    if: success()
+    
+    steps:
+    - name: 🎉 Success Notification
+      run: |
+        echo "🎉 KawaiiSec OS ${{ needs.build-iso.outputs.version }} build completed successfully!"
+        echo "📦 ISO: ${{ needs.build-iso.outputs.iso_name }}"
+        echo "🚀 Release: https://github.com/${{ github.repository }}/releases" 

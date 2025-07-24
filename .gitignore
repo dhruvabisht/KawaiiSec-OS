@@ -1,0 +1,9 @@
+# Hardware test reports (keep directory structure but ignore generated reports)
+hardware_reports/*_report.txt
+hardware_reports/*_snippet.md
+!hardware_reports/README.md
+!hardware_reports/templates/
+
+# User-generated hardware test files
+kawaiisec_hw_report.txt
+kawaiisec_hw_snippet.md 

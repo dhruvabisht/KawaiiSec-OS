@@ -1,0 +1,103 @@
+#!/bin/bash
+
+# KawaiiSec OS Cleanup Hook
+# Final system cleanup and optimization during ISO build
+
+set -e
+
+echo "🧹 Performing final system cleanup..."
+
+# Clean package cache
+echo "📦 Cleaning package cache..."
+apt autoremove -y || true
+apt autoclean || true
+apt clean || true
+
+# Remove unnecessary files
+echo "🗑️  Removing unnecessary files..."
+rm -rf /var/cache/apt/archives/*.deb
+rm -rf /var/cache/apt/archives/partial/*
+rm -rf /tmp/*
+rm -rf /var/tmp/*
+rm -rf /var/log/*.log
+rm -rf /var/log/*/*.log
+rm -rf /root/.bash_history
+rm -rf /home/*/.bash_history 2>/dev/null || true
+
+# Clean systemd logs
+echo "📝 Cleaning systemd logs..."
+journalctl --vacuum-time=1d || true
+
+# Remove SSH host keys (will be regenerated on first boot)
+echo "🔑 Removing SSH host keys..."
+rm -f /etc/ssh/ssh_host_*
+
+# Clean up build artifacts
+echo "🔧 Cleaning build artifacts..."
+rm -rf /var/lib/apt/lists/*
+rm -rf /var/cache/debconf/*-old
+rm -rf /usr/share/doc/*
+rm -rf /usr/share/man/*
+rm -rf /usr/share/info/*
+
+# Optimize file system
+echo "💾 Optimizing file system..."
+# Fill free space with zeros for better compression
+# dd if=/dev/zero of=/EMPTY bs=1M 2>/dev/null || true
+# rm -f /EMPTY
+
+# Set proper permissions on KawaiiSec directories
+echo "🔒 Setting proper permissions..."
+chown -R root:root /opt/kawaiisec
+chmod -R 755 /opt/kawaiisec
+chown -R root:root /usr/share/kawaiisec 2>/dev/null || true
+chmod -R 644 /usr/share/kawaiisec 2>/dev/null || true
+find /usr/share/kawaiisec -type d -exec chmod 755 {} \; 2>/dev/null || true
+
+# Ensure scripts are executable
+find /usr/local/bin -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
+find /usr/local/bin -name "kawaiisec-*" -exec chmod +x {} \; 2>/dev/null || true
+find /usr/local/bin -name "launch-*" -exec chmod +x {} \; 2>/dev/null || true
+
+# Set up locale
+echo "🌐 Setting up locale..."
+echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+locale-gen en_US.UTF-8
+update-locale LANG=en_US.UTF-8
+
+# Configure timezone
+echo "🕐 Setting timezone..."
+echo "UTC" > /etc/timezone
+ln -sf /usr/share/zoneinfo/UTC /etc/localtime
+
+# Disable unnecessary services for live system
+echo "⚙️  Configuring services for live system..."
+systemctl disable apt-daily.timer 2>/dev/null || true
+systemctl disable apt-daily-upgrade.timer 2>/dev/null || true
+systemctl disable unattended-upgrades 2>/dev/null || true
+
+# Create version file
+echo "📋 Creating version information..."
+cat > /etc/kawaiisec-release << EOF
+KawaiiSec OS $(date +%Y.%m.%d)
+Built on: $(date)
+Architecture: $(dpkg --print-architecture)
+Kernel: $(uname -r)
+EOF
+
+# Create final system status
+echo "✅ Creating system status..."
+cat > /var/lib/kawaiisec/build-status << EOF
+KawaiiSec OS Build Status
+========================
+Build Date: $(date)
+Build Host: $(hostname)
+Architecture: $(dpkg --print-architecture)
+Packages Installed: $(dpkg -l | wc -l)
+Build Status: SUCCESS
+EOF
+
+chmod 644 /etc/kawaiisec-release
+chmod 644 /var/lib/kawaiisec/build-status
+
+echo "✨ KawaiiSec OS cleanup completed successfully!" 

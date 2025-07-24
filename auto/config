@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# KawaiiSec OS Live-Build Configuration Script
+# Configures live-build parameters for reproducible ISO generation
+
+set -e
+
+# Project information
+PROJECT_NAME="KawaiiSec OS"
+VERSION="$(date +%Y.%m.%d)"
+CODENAME="kawaii"
+
+# Base system configuration
+DISTRIBUTION="bookworm"
+ARCHITECTURE="amd64"
+ARCHIVE_AREAS="main contrib non-free non-free-firmware"
+
+# Live system configuration
+DESKTOP_ENVIRONMENT="xfce"
+BOOTLOADER="syslinux"
+IMAGE_TYPE="iso-hybrid"
+HOSTNAME="kawaiisec"
+USERNAME="kawaiisec"
+
+# Branding
+SPLASH_SCREEN="true"
+MEMTEST="none"
+BOOTAPPEND_LIVE="boot=live components hostname=kawaiisec username=kawaiisec"
+
+# Mirror configuration
+MIRROR_BOOTSTRAP="http://deb.debian.org/debian/"
+MIRROR_CHROOT="http://deb.debian.org/debian/"
+MIRROR_CHROOT_SECURITY="http://security.debian.org/debian-security/"
+
+# Execute live-build configuration
+lb config noauto \
+    --distribution "${DISTRIBUTION}" \
+    --architecture "${ARCHITECTURE}" \
+    --archive-areas "${ARCHIVE_AREAS}" \
+    --binary-images "${IMAGE_TYPE}" \
+    --bootloader "${BOOTLOADER}" \
+    --chroot-squashfs-compression-type xz \
+    --compression xz \
+    --debconf-frontend noninteractive \
+    --debian-installer false \
+    --debian-installer-gui false \
+    --firmware-chroot true \
+    --firmware-binary true \
+    --iso-application "${PROJECT_NAME}" \
+    --iso-publisher "KawaiiSec Team" \
+    --iso-volume "${PROJECT_NAME} ${VERSION}" \
+    --linux-flavours amd64 \
+    --linux-packages "linux-image linux-headers" \
+    --memtest "${MEMTEST}" \
+    --mirror-bootstrap "${MIRROR_BOOTSTRAP}" \
+    --mirror-chroot "${MIRROR_CHROOT}" \
+    --mirror-chroot-security "${MIRROR_CHROOT_SECURITY}" \
+    --security true \
+    --updates true \
+    --system live \
+    --win32-loader false \
+    --bootappend-live "${BOOTAPPEND_LIVE}" \
+    --bootappend-live-failsafe "boot=live components memtest noapic noapm nodma nomce nolapic nomodeset nosmp nosplash vga=normal single" \
+    --syslinux-splash config/bootloaders/syslinux/splash.png \
+    --syslinux-timeout 30 \
+    --syslinux-menu-title "${PROJECT_NAME} Live" \
+    "${@}"
+
+echo "✅ Live-build configuration completed for ${PROJECT_NAME} ${VERSION}" 

@@ -15,9 +15,65 @@ Welcome to the hands-on cybersecurity lab guide! This guide provides step-by-ste
 
 ---
 
-## 🚀 Lab Environment Setup
+## 🚀 Quick Start
 
-### Prerequisites Check
+Before diving into the lab environments, let's ensure your system is compatible and ready.
+
+### Step 0: Hardware Compatibility Check 🖥️
+
+**Recommended**: Test your hardware compatibility first to ensure smooth operation.
+
+```bash
+# Check if your hardware is supported
+make hwmatrix                    # View compatibility matrix
+
+# Test your current system
+make hwtest                      # Run hardware compatibility test
+
+# Quick automated test (if scripting)
+make hwtest-quick               # Non-interactive test
+```
+
+**What to expect:**
+- ✅ 70%+ compatibility: Excellent for lab work
+- ⚠️ 50-70% compatibility: Should work with minor issues
+- ❌ <50% compatibility: May have significant problems
+
+**Need help?** Check the [Hardware Compatibility Matrix](hardware_matrix.md) or join our [Discord community](https://discord.gg/kawaiisec).
+
+### Step 1: Account Security Check 🧹
+
+**Before starting lab work**, ensure no unauthorized demo/test accounts exist on your system:
+
+```bash
+# Scan for suspicious accounts (safe dry-run)
+make account-cleanup
+
+# Create account cleanup configuration
+make account-cleanup-config
+
+# Edit whitelist to protect legitimate accounts
+sudo nano /etc/kawaiisec/account_whitelist.txt
+
+# Remove suspicious accounts if found
+make account-cleanup-force      # After reviewing results
+```
+
+**Why this matters:**
+- 🔒 Prevents unauthorized access via demo accounts
+- 🎯 Essential for production/shared environments  
+- 📝 Required before packaging or distribution
+- ✅ Maintains system security integrity
+
+**What it detects:**
+- Accounts named: demo, test, guest, student, lab, etc.
+- Generic accounts: user, admin, kali
+- Training accounts: pentest, workshop, training
+
+For detailed information, see the [Account Cleanup Documentation](account_cleanup.md).
+
+### Step 2: Prerequisites
+
 ```bash
 # Verify KawaiiSec installation
 kawaiisec-help

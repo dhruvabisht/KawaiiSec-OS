@@ -31,12 +31,51 @@ KawaiiSec OS is a Kali Linux-based educational distribution designed for cyberse
 - **Automated system cleanup** and maintenance
 - **Comprehensive logging** and reporting
 
+### 🧹 Account Security Management
+- **Demo/test account cleanup** system with automated detection
+- **Whitelist protection** for legitimate accounts
+- **Safe dry-run mode** with detailed reporting before changes
+- **Multiple processing options** (remove, lock, or skip accounts)
+- **Pre-release security scanning** and documentation
+- **CI/CD integration** for automated account auditing
+
 ### 🖥️ Hardware Compatibility System
 - **Comprehensive hardware testing** across virtualization and physical systems
 - **Automated compatibility reports** for community contribution
 - **Hardware compatibility matrix** with detailed test results
 - **CI/CD integration** for continuous compatibility validation
 - **Community-driven testing** with easy contribution workflow
+
+## 🌸 ISO Building
+
+KawaiiSec OS now includes a fully automated, reproducible ISO packaging system:
+
+```bash
+# Install live-build dependencies
+sudo apt install live-build debootstrap xorriso isolinux
+
+# Build KawaiiSec OS ISO
+make iso
+
+# Validate the built ISO
+make validate-iso
+
+# Test in QEMU virtual machine
+make test-iso-qemu
+```
+
+**Complete Documentation:** See [`docs/release.md`](docs/release.md) for comprehensive build instructions, customization options, and troubleshooting.
+
+## 🎯 Recent Updates
+
+### ✨ New in Latest Version
+- **🌸 Complete ISO Build System** - Automated, reproducible live ISO generation
+- **🛠️ Live-Build Integration** - Debian live-build with custom hooks and configurations  
+- **✅ ISO Validation Suite** - Comprehensive post-build verification and testing
+- **🚀 GitHub Actions CI/CD** - Automated building, testing, and releases
+- **📊 Build Reporting** - Detailed build logs, validation reports, and artifact management
+- **🖥️ QEMU Integration** - Automated boot testing and VM validation
+- **📦 Makefile Targets** - Easy `make iso`, `make validate-iso`, `make test-iso-qemu` commands
 
 ## 🚀 Quick Start
 
@@ -59,6 +98,36 @@ KawaiiSec OS is a Kali Linux-based educational distribution designed for cyberse
    - Create your user account and configure basic settings
    - Storage management features will be initialized
 
+### Hardware Compatibility Testing
+
+Before installation, check if your hardware is supported:
+
+1. **View the compatibility matrix:**
+   ```bash
+   # View online compatibility matrix
+   xdg-open docs/hardware_matrix.md
+   ```
+
+2. **Test your hardware:**
+   ```bash
+   # Download and run hardware test
+   wget https://raw.githubusercontent.com/your-org/KawaiiSec-OS/main/scripts/kawaiisec-hwtest.sh
+   chmod +x kawaiisec-hwtest.sh
+   sudo ./kawaiisec-hwtest.sh
+   
+   # Or if you have the repository cloned:
+   sudo scripts/kawaiisec-hwtest.sh
+   
+   # Or use the Makefile target:
+   make hwtest
+   ```
+
+3. **Contribute your results:**
+   - The test script generates both a detailed report and a markdown snippet
+   - Copy the markdown snippet to `docs/hardware_matrix.md`
+   - Submit a pull request or create an issue with your results
+   - Help improve hardware support for the community!
+
 ### Using the Build System
 
 ```bash
@@ -67,6 +136,9 @@ make all
 
 # Install system-wide
 make install-package
+
+# Test hardware compatibility
+make hwtest
 
 # Start lab environments
 make labs-start
@@ -77,6 +149,29 @@ make test
 # Clean up
 make clean
 ```
+
+### System Requirements
+
+#### Minimum Requirements
+- **CPU**: x86_64 architecture (ARM64 support in development)
+- **RAM**: 4GB (8GB recommended)
+- **Storage**: 20GB free space (SSD recommended)
+- **Network**: Ethernet or WiFi connectivity
+
+#### Recommended Requirements
+- **CPU**: Multi-core x86_64 processor (Intel i5/AMD Ryzen 5 or better)
+- **RAM**: 16GB or more
+- **Storage**: 50GB+ NVMe SSD
+- **Network**: Ethernet + WiFi with good Linux driver support
+- **Graphics**: Integrated or discrete GPU with Linux drivers
+
+#### Hardware Compatibility
+- **Excellent**: Intel integrated graphics, mainstream WiFi chipsets
+- **Good**: AMD graphics, common network controllers
+- **Limited**: NVIDIA graphics (requires proprietary drivers)
+- **Unsupported**: Apple Silicon Macs (ARM64 support in development)
+
+For detailed compatibility information, see our [Hardware Compatibility Matrix](docs/hardware_matrix.md).
 
 ## 🔧 Storage Management
 
@@ -152,40 +247,62 @@ kawaiisec-cleanup.sh all
 kawaiisec-cleanup.sh dry-run
 ```
 
-## 🖥️ Hardware Compatibility Testing
-
-### Run Hardware Test
-Test your system's compatibility with KawaiiSec OS:
+### Account Security Management
+Robust system for detecting and removing demo/test accounts:
 
 ```bash
-# Quick compatibility test
-make hwtest
+# Scan for suspicious accounts (safe)
+make account-cleanup
 
-# Or run the script directly
+# Create configuration files
+make account-cleanup-config
+
+# Remove suspicious accounts (with confirmation)
+make account-cleanup-force
+
+# Lock accounts instead of removing (safer)
+make account-cleanup-lock
+```
+
+## 📊 Hardware Testing & Contribution
+
+### Testing Your Hardware
+
+KawaiiSec OS includes a comprehensive hardware testing system:
+
+```bash
+# Run automated hardware compatibility test
 sudo kawaiisec-hwtest.sh
 
-# Generate detailed report
-sudo kawaiisec-hwtest.sh --detailed
+# View test results
+cat ~/kawaiisec_hw_report.txt      # Detailed technical report
+cat ~/kawaiisec_hw_snippet.md      # Ready-to-submit matrix entry
 ```
 
-### Check Compatibility Matrix
-Review tested hardware and compatibility status:
+### Contributing Test Results
 
-```bash
-# View the compatibility matrix
-less docs/hardware_matrix.md
+Help improve hardware compatibility by contributing your test results:
 
-# Or online at
-# https://github.com/your-org/KawaiiSec-OS/docs/hardware_matrix.md
-```
+1. **Run the hardware test** on your system
+2. **Review the generated markdown snippet** (`~/kawaiisec_hw_snippet.md`)
+3. **Add your results to the compatibility matrix**:
+   - Fork this repository
+   - Edit `docs/hardware_matrix.md`
+   - Copy the table row from your snippet
+   - Submit a pull request
 
-### Contribute Test Results
-Help improve hardware support by submitting your test results:
+4. **Join the community**:
+   - [Hardware Compatibility Matrix](docs/hardware_matrix.md)
+   - [Community Forum](https://forum.kawaiisec.com)
+   - [Discord](https://discord.gg/kawaiisec) - `#hardware-help` channel
 
-1. Run the hardware test on your system
-2. Review the generated report at `~/kawaiisec_hw_report.txt`
-3. Fork the repository and update `docs/hardware_matrix.md`
-4. Submit a pull request with your hardware details
+### Automated Testing
+
+Our CI/CD pipeline continuously tests hardware compatibility:
+- **Weekly testing** on major cloud platforms
+- **Regression testing** for previously working hardware  
+- **Community-driven** quarterly testing events
+- **Real-time updates** to the compatibility matrix
 
 ## 🧪 Lab Environments
 

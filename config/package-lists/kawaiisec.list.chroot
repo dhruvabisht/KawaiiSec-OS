@@ -1,0 +1,154 @@
+# KawaiiSec OS Core Package List
+# Essential packages for the KawaiiSec OS live system
+
+# Base system
+live-boot
+live-config
+live-config-systemd
+
+# Desktop Environment - XFCE
+xfce4
+xfce4-goodies
+xfce4-terminal
+xfce4-screenshooter
+xfce4-taskmanager
+xfce4-power-manager
+lightdm
+lightdm-gtk-greeter
+lightdm-gtk-greeter-settings
+
+# System utilities
+sudo
+curl
+wget
+git
+vim
+nano
+htop
+tree
+unzip
+zip
+gzip
+tar
+rsync
+systemd-timesyncd
+ca-certificates
+gnupg
+apt-transport-https
+
+# Network tools
+openssh-client
+openssh-server
+netstat-nat
+net-tools
+iproute2
+dnsutils
+iputils-ping
+traceroute
+tcpdump
+wireshark
+nmap
+masscan
+nikto
+dirb
+gobuster
+wfuzz
+sqlmap
+hydra
+john
+hashcat
+aircrack-ng
+reaver
+bully
+hostapd
+dnsmasq
+
+# Web application security
+burpsuite
+owasp-zap
+wpscan
+whatweb
+sublist3r
+
+# Reverse engineering and forensics
+gdb
+radare2
+ghidra
+binwalk
+foremost
+scalpel
+sleuthkit
+volatility3
+autopsy
+
+# Exploitation and post-exploitation
+metasploit-framework
+empire
+covenant
+crackmapexec
+impacket-scripts
+responder
+bloodhound
+neo4j
+powershell
+
+# Container and virtualization
+docker.io
+docker-compose
+vagrant
+virtualbox
+qemu-kvm
+libvirt-daemon-system
+virt-manager
+
+# Development tools
+python3
+python3-pip
+python3-venv
+python3-dev
+nodejs
+npm
+ruby
+ruby-dev
+gcc
+g++
+make
+cmake
+golang-go
+
+# Multimedia and graphics
+firefox-esr
+vlc
+gimp
+ristretto
+mousepad
+libreoffice
+evince
+
+# Fonts and themes
+fonts-liberation
+fonts-dejavu
+fonts-noto
+papirus-icon-theme
+arc-theme
+
+# Audio system
+pulseaudio
+alsa-utils
+pavucontrol
+
+# File system support
+ntfs-3g
+exfat-fuse
+btrfs-progs
+
+# Additional utilities
+timeshift
+gufw
+bleachbit
+keepassxc
+remmina
+filezilla
+chromium
+code
+terminator 

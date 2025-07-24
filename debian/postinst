@@ -98,6 +98,24 @@ case "$1" in
             echo "Desktop environment configured with XFCE and KawaiiSec branding"
         fi
         
+        # Setup account cleanup system
+        echo "Configuring account cleanup system..."
+        if [ -f /usr/local/bin/kawaiisec-account-cleanup.sh ]; then
+            # Create default configuration files
+            /usr/local/bin/kawaiisec-account-cleanup.sh config 2>/dev/null || true
+            
+            # Copy default whitelist if it doesn't exist
+            if [ ! -f /etc/kawaiisec/account_whitelist.txt ] && [ -f /usr/share/kawaiisec/config/account_whitelist.txt ]; then
+                cp /usr/share/kawaiisec/config/account_whitelist.txt /etc/kawaiisec/
+                echo "Default account whitelist installed"
+            fi
+            
+            # Run a dry-run scan to check for existing suspicious accounts
+            echo "Scanning for suspicious demo/test accounts..."
+            /usr/local/bin/kawaiisec-account-cleanup.sh scan 2>/dev/null || true
+            echo "Account cleanup system configured (run 'make account-cleanup' for manual cleanup)"
+        fi
+        
         echo "KawaiiSec Tools installation completed!"
         echo "Run 'kawaiisec-help' for usage information."
         echo ""
@@ -109,6 +127,7 @@ case "$1" in
         echo "  - OverlayFS support for immutable root"
         echo "  - XFCE desktop environment with KawaiiSec branding"
         echo "  - Hardened firewall protection with lab-ready configuration"
+        echo "  - Account cleanup system for demo/test account removal"
         ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

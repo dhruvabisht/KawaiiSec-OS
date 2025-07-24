@@ -1,0 +1,57 @@
+# KawaiiSec OS Development Tools
+# Development, debugging, and research utilities
+
+# Advanced development
+gdb-multiarch
+lldb
+clang
+clang-tools
+valgrind
+strace
+ltrace
+objdump
+hexdump
+xxd
+
+# Scripting and automation
+bash-completion
+zsh
+zsh-autosuggestions
+zsh-syntax-highlighting
+tmux
+screen
+expect
+
+# Version control
+git-extras
+gitk
+meld
+
+# Text editors and IDEs
+emacs
+vim-gtk3
+sublime-text-installer
+
+# Database tools
+sqlite3
+mysql-client
+postgresql-client
+redis-tools
+mongo-tools
+
+# API and web testing
+postman
+insomnia
+httpie
+
+# Documentation
+pandoc
+texlive-latex-base
+texlive-latex-extra
+
+# System monitoring
+sysdig
+nethogs
+iotop
+powertop
+smartmontools 

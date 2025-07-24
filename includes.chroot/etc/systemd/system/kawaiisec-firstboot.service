@@ -1,0 +1,27 @@
+[Unit]
+Description=KawaiiSec OS First Boot Setup Wizard
+Documentation=man:kawaiisec-firstboot.sh(8)
+After=multi-user.target graphical-session.target
+Before=getty@tty1.service
+Conflicts=getty@tty1.service
+ConditionPathExists=!/var/lib/kawaiisec/firstboot-done
+ConditionKernelCommandLine=!boot=live
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/kawaiisec-firstboot.sh
+StandardInput=tty-force
+StandardOutput=inherit
+StandardError=inherit
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+KillMode=process
+IgnoreSIGPIPE=no
+SendSIGHUP=yes
+RemainAfterExit=yes
+Restart=no
+
+[Install]
+WantedBy=multi-user.target 

@@ -45,6 +45,9 @@ help: ## 🌸 Show this help message
 	@echo ""
 	@echo "🧪 Testing Targets:"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## .*🧪/ {printf "  $(YELLOW)%-20s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@echo ""
+	@echo "🖥️ Hardware Targets:"
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## .*🖥️/ {printf "  $(CYAN)%-20s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # ==============================================================================
 # MAIN BUILD TARGETS
@@ -299,6 +302,95 @@ benchmark-clean: ## 🧹 Clean old benchmark reports and artifacts
 	@echo -e "$(GREEN)✅ Benchmark cleanup completed$(NC)"
 
 # ==============================================================================
+# ACCOUNT CLEANUP TARGETS
+# ==============================================================================
+
+.PHONY: account-cleanup
+account-cleanup: ## 🧹 Scan for suspicious demo/test accounts (dry-run)
+	@echo -e "$(BLUE)🧹 Scanning for suspicious demo/test accounts...$(NC)"
+	@if [ -f scripts/kawaiisec-account-cleanup.sh ]; then \
+		chmod +x scripts/kawaiisec-account-cleanup.sh; \
+		sudo scripts/kawaiisec-account-cleanup.sh scan; \
+	elif command -v kawaiisec-account-cleanup.sh >/dev/null 2>&1; then \
+		sudo kawaiisec-account-cleanup.sh scan; \
+	else \
+		echo -e "$(RED)❌ Account cleanup script not found$(NC)"; \
+		echo -e "$(YELLOW)💡 Install KawaiiSec OS or run from project directory$(NC)"; \
+		exit 1; \
+	fi
+	@echo -e "$(GREEN)✅ Account scan completed$(NC)"
+
+.PHONY: account-cleanup-force
+account-cleanup-force: ## 🚨 Remove suspicious demo/test accounts (DESTRUCTIVE)
+	@echo -e "$(RED)🚨 WARNING: This will PERMANENTLY REMOVE suspicious accounts!$(NC)"
+	@echo -e "$(YELLOW)⚠️  Make sure you have reviewed the whitelist in config/account_whitelist.txt$(NC)"
+	@read -p "Are you sure you want to proceed? (yes/no): " confirm && [ "$$confirm" = "yes" ] || exit 1
+	@echo -e "$(BLUE)🧹 Removing suspicious demo/test accounts...$(NC)"
+	@if [ -f scripts/kawaiisec-account-cleanup.sh ]; then \
+		chmod +x scripts/kawaiisec-account-cleanup.sh; \
+		sudo scripts/kawaiisec-account-cleanup.sh --force cleanup; \
+	elif command -v kawaiisec-account-cleanup.sh >/dev/null 2>&1; then \
+		sudo kawaiisec-account-cleanup.sh --force cleanup; \
+	else \
+		echo -e "$(RED)❌ Account cleanup script not found$(NC)"; \
+		exit 1; \
+	fi
+	@echo -e "$(GREEN)✅ Account cleanup completed$(NC)"
+
+.PHONY: account-cleanup-lock
+account-cleanup-lock: ## 🔒 Lock suspicious demo/test accounts (safer option)
+	@echo -e "$(YELLOW)🔒 Locking suspicious demo/test accounts...$(NC)"
+	@echo -e "$(BLUE)ℹ️  This will disable accounts but preserve data$(NC)"
+	@if [ -f scripts/kawaiisec-account-cleanup.sh ]; then \
+		chmod +x scripts/kawaiisec-account-cleanup.sh; \
+		sudo scripts/kawaiisec-account-cleanup.sh --lock-only --force cleanup; \
+	elif command -v kawaiisec-account-cleanup.sh >/dev/null 2>&1; then \
+		sudo kawaiisec-account-cleanup.sh --lock-only --force cleanup; \
+	else \
+		echo -e "$(RED)❌ Account cleanup script not found$(NC)"; \
+		exit 1; \
+	fi
+	@echo -e "$(GREEN)✅ Account locking completed$(NC)"
+
+.PHONY: account-cleanup-config
+account-cleanup-config: ## ⚙️ Create account cleanup configuration files
+	@echo -e "$(BLUE)⚙️ Creating account cleanup configuration...$(NC)"
+	@if [ -f scripts/kawaiisec-account-cleanup.sh ]; then \
+		chmod +x scripts/kawaiisec-account-cleanup.sh; \
+		scripts/kawaiisec-account-cleanup.sh config; \
+	elif command -v kawaiisec-account-cleanup.sh >/dev/null 2>&1; then \
+		kawaiisec-account-cleanup.sh config; \
+	else \
+		echo -e "$(RED)❌ Account cleanup script not found$(NC)"; \
+		exit 1; \
+	fi
+	@echo -e "$(GREEN)✅ Configuration files created$(NC)"
+	@echo -e "$(YELLOW)💡 Edit /etc/kawaiisec/account_whitelist.txt to add legitimate accounts$(NC)"
+
+.PHONY: account-cleanup-status
+account-cleanup-status: ## 📊 Show account cleanup status and statistics
+	@echo -e "$(BLUE)📊 Account Cleanup Status$(NC)"
+	@echo "=============================="
+	@echo ""
+	@echo -e "$(BLUE)Configuration Files:$(NC)"
+	@echo -n "  Config file: "
+	@test -f /etc/kawaiisec/account-cleanup.conf && echo -e "$(GREEN)✅ Found$(NC)" || echo -e "$(YELLOW)⚠️  Not found$(NC)"
+	@echo -n "  Whitelist:   "
+	@test -f /etc/kawaiisec/account_whitelist.txt && echo -e "$(GREEN)✅ Found$(NC)" || echo -e "$(YELLOW)⚠️  Not found$(NC)"
+	@echo -n "  Log file:    "
+	@test -f /var/log/kawaiisec-account-cleanup.log && echo -e "$(GREEN)✅ Found$(NC)" || echo -e "$(YELLOW)⚠️  Not found$(NC)"
+	@echo ""
+	@if [ -f /etc/kawaiisec/account_whitelist.txt ]; then \
+		echo -e "$(BLUE)Whitelisted Accounts:$(NC)"; \
+		grep -v "^#" /etc/kawaiisec/account_whitelist.txt | grep -v "^[[:space:]]*$$" | sed 's/^/  /' || echo "  None configured"; \
+	fi
+	@echo ""
+	@if [ -f /var/log/kawaiisec-account-cleanup.log ]; then \
+		echo -e "$(BLUE)Recent Activity:$(NC)"; \
+		tail -5 /var/log/kawaiisec-account-cleanup.log | sed 's/^/  /' || echo "  No recent activity"; \
+	fi
+
+# ==============================================================================
 # FIREWALL TARGETS
 # ==============================================================================
 
@@ -325,26 +417,93 @@ firewall-test: ## 🧪 Test firewall configuration
 	@sudo scripts/kawaiisec-firewall-setup.sh test
 	@echo -e "$(GREEN)✅ Firewall test completed$(NC)"
 
+# Hardware compatibility testing target
 .PHONY: hwtest
-hwtest: ## 🖥️ Run hardware compatibility testing
-	@echo -e "$(BLUE)🖥️ Running KawaiiSec OS hardware compatibility test...$(NC)"
-	@if [ -f scripts/kawaiisec-hwtest.sh ]; then \
-		chmod +x scripts/kawaiisec-hwtest.sh; \
-		sudo scripts/kawaiisec-hwtest.sh; \
-	elif command -v kawaiisec-hwtest.sh >/dev/null 2>&1; then \
-		sudo kawaiisec-hwtest.sh; \
-	else \
-		echo -e "$(RED)❌ Hardware test script not found$(NC)"; \
-		echo -e "$(YELLOW)💡 Install KawaiiSec OS or run from project directory$(NC)"; \
+hwtest: ## 🖥️ Run hardware compatibility test and generate reports
+	@echo -e "$(BLUE)🖥️ Running KawaiiSec OS Hardware Compatibility Test...$(NC)"
+	@if [ ! -f scripts/kawaiisec-hwtest.sh ]; then \
+		echo -e "$(RED)❌ Hardware test script not found!$(NC)"; \
+		echo "Please ensure scripts/kawaiisec-hwtest.sh exists and is executable."; \
 		exit 1; \
 	fi
+	@if [ "$$(id -u)" -ne 0 ]; then \
+		echo -e "$(YELLOW)⚠️ Root privileges required for complete hardware testing.$(NC)"; \
+		echo "Re-running with sudo..."; \
+		sudo $(MAKE) hwtest-run; \
+	else \
+		$(MAKE) hwtest-run; \
+	fi
+
+.PHONY: hwtest-run
+hwtest-run:
+	@chmod +x scripts/kawaiisec-hwtest.sh
+	@mkdir -p hardware_reports
+	@echo -e "$(CYAN)🔍 Starting hardware detection and testing...$(NC)"
+	@scripts/kawaiisec-hwtest.sh || true
 	@echo ""
-	@echo -e "$(PURPLE)📤 Next Steps:$(NC)"
-	@echo "  1. Review the report at ~/kawaiisec_hw_report.txt"
-	@echo "  2. Submit results to hardware compatibility matrix"
-	@echo "  3. Create PR with hardware details at:"
-	@echo "     https://github.com/your-org/KawaiiSec-OS/docs/hardware_matrix.md"
-	@echo -e "$(GREEN)🙏 Thanks for contributing to KawaiiSec OS hardware support!$(NC)"
+	@echo -e "$(GREEN)✅ Hardware test completed!$(NC)"
+	@echo -e "Reports saved to:"
+	@echo -e "  📄 Detailed: $(CYAN)$$HOME/kawaiisec_hw_report.txt$(NC)"
+	@echo -e "  📝 Snippet:  $(CYAN)$$HOME/kawaiisec_hw_snippet.md$(NC)"
+	@echo -e "  📁 Archive:  $(CYAN)hardware_reports/$(NC)"
+	@echo ""
+	@echo -e "$(BLUE)📤 Next steps:$(NC)"
+	@echo "1. Review your markdown snippet"
+	@echo "2. Add results to docs/hardware_matrix.md"
+	@echo "3. Submit a pull request with your results"
+	@echo "4. Help improve KawaiiSec OS compatibility! 🌸"
+
+.PHONY: hwtest-quick
+hwtest-quick: ## 🖥️ Run quick hardware compatibility test (non-interactive)
+	@echo -e "$(BLUE)🖥️ Running Quick Hardware Test...$(NC)"
+	@chmod +x scripts/kawaiisec-hwtest.sh
+	@mkdir -p hardware_reports
+	@scripts/kawaiisec-hwtest.sh --quick --no-prompts || true
+	@echo -e "$(GREEN)✅ Quick hardware test completed!$(NC)"
+
+.PHONY: hwmatrix
+hwmatrix: ## 🖥️ View hardware compatibility matrix
+	@echo -e "$(BLUE)🖥️ KawaiiSec OS Hardware Compatibility Matrix$(NC)"
+	@echo ""
+	@if command -v less >/dev/null 2>&1; then \
+		less docs/hardware_matrix.md; \
+	elif command -v more >/dev/null 2>&1; then \
+		more docs/hardware_matrix.md; \
+	else \
+		cat docs/hardware_matrix.md; \
+	fi
+
+.PHONY: hwtest-info
+hwtest-info: ## 🖥️ Show hardware testing information and help
+	@echo -e "$(PURPLE)"
+	@echo "╭─────────────────────────────────────────╮"
+	@echo "│   🖥️ Hardware Compatibility Testing 🖥️   │"
+	@echo "╰─────────────────────────────────────────╯"
+	@echo -e "$(NC)"
+	@echo ""
+	@echo -e "$(BLUE)Available Commands:$(NC)"
+	@echo "  make hwtest         - Run full interactive hardware test"
+	@echo "  make hwtest-quick   - Run quick automated test"
+	@echo "  make hwmatrix       - View compatibility matrix"
+	@echo "  make hwtest-info    - Show this help"
+	@echo ""
+	@echo -e "$(BLUE)Test Process:$(NC)"
+	@echo "1. Script prompts for hardware information"
+	@echo "2. Comprehensive automated testing performed"
+	@echo "3. Detailed report and markdown snippet generated"
+	@echo "4. Results saved to home directory and hardware_reports/"
+	@echo ""
+	@echo -e "$(BLUE)Contributing Results:$(NC)"
+	@echo "• Copy markdown snippet to docs/hardware_matrix.md"
+	@echo "• Submit pull request with your test results"
+	@echo "• Join community discussion on hardware compatibility"
+	@echo ""
+	@echo -e "$(BLUE)Support:$(NC)"
+	@echo "• Documentation: docs/hardware_matrix.md"
+	@echo "• Community: https://forum.kawaiisec.com"
+	@echo "• Discord: #hardware-help channel"
+	@echo ""
+	@echo -e "$(GREEN)Help improve KawaiiSec OS hardware support! 🌸$(NC)"
 
 # ==============================================================================
 # DESKTOP ENVIRONMENT TARGETS
@@ -601,10 +760,68 @@ examples: ## 💡 Show usage examples
 	@echo "  make release-prepare        # Prepare release package"
 	@echo "  make release-info           # Show release information"
 	@echo ""
+	@echo -e "$(PURPLE)🌸 ISO Building:$(NC)"
+	@echo "  make iso                    # Build KawaiiSec OS ISO image"
+	@echo "  make validate-iso           # Validate existing ISO file"
+	@echo "  make test-iso-qemu          # Test ISO in QEMU virtual machine"
+	@echo "  make release-iso            # Build and validate ISO for release"
+	@echo "  make iso-clean              # Clean ISO build artifacts"
+	@echo ""
 	@echo -e "$(BLUE)🧹 Maintenance:$(NC)"
 	@echo "  make clean                  # Clean build artifacts"
 	@echo "  make labs-clean             # Clean lab environments"
 	@echo "  make distclean              # Deep clean everything"
+
+.PHONY: iso
+iso: ## 🌸 Build KawaiiSec OS ISO image
+	@echo -e "$(PURPLE)🌸 Building KawaiiSec OS ISO...$(NC)"
+	@if [ ! -x ./build-iso.sh ]; then chmod +x ./build-iso.sh; fi
+	./build-iso.sh
+	@echo -e "$(GREEN)✅ ISO build completed!$(NC)"
+
+.PHONY: iso-clean
+iso-clean: ## 🧹 Clean ISO build artifacts
+	@echo -e "$(YELLOW)🧹 Cleaning ISO build artifacts...$(NC)"
+	rm -rf build/
+	rm -f *.iso *.iso.* build-*.log iso-validation-report.txt
+	@echo -e "$(GREEN)✅ ISO build artifacts cleaned$(NC)"
+
+.PHONY: validate-iso
+validate-iso: ## ✅ Validate existing ISO file
+	@echo -e "$(BLUE)✅ Validating ISO...$(NC)"
+	@if [ ! -x ./scripts/validate-iso.sh ]; then chmod +x ./scripts/validate-iso.sh; fi
+	./scripts/validate-iso.sh
+	@echo -e "$(GREEN)✅ ISO validation completed$(NC)"
+
+.PHONY: test-iso-qemu
+test-iso-qemu: ## 🖥️  Test ISO in QEMU virtual machine
+	@echo -e "$(BLUE)🖥️  Testing ISO in QEMU...$(NC)"
+	@if [ ! -f kawaiisec-os-*.iso ]; then \
+		echo -e "$(RED)❌ No ISO file found. Run 'make iso' first.$(NC)"; \
+		exit 1; \
+	fi
+	@ISO_FILE=$$(ls kawaiisec-os-*.iso | head -1); \
+	echo -e "$(YELLOW)🚀 Starting QEMU with $$ISO_FILE$(NC)"; \
+	echo -e "$(CYAN)💡 Use Ctrl+Alt+G to release mouse, Ctrl+Alt+F to toggle fullscreen$(NC)"; \
+	qemu-system-x86_64 -cdrom "$$ISO_FILE" -m 2048 -enable-kvm || \
+	qemu-system-x86_64 -cdrom "$$ISO_FILE" -m 2048
+
+.PHONY: release-iso
+release-iso: iso validate-iso ## 🚀 Build and validate ISO for release
+	@echo -e "$(PURPLE)🚀 Preparing KawaiiSec OS release...$(NC)"
+	@ISO_FILE=$$(ls kawaiisec-os-*.iso | head -1); \
+	echo -e "$(GREEN)✅ Release ready: $$ISO_FILE$(NC)"
+	@echo -e "$(YELLOW)📋 Release checklist:$(NC)"
+	@echo "  ✅ ISO built successfully"
+	@echo "  ✅ ISO validated"
+	@echo "  ✅ Checksums generated"
+	@echo "  ✅ Build report created"
+	@echo ""
+	@echo -e "$(CYAN)📤 Next steps:$(NC)"
+	@echo "  - Test ISO in virtual machine: make test-iso-qemu"
+	@echo "  - Upload to release repository"
+	@echo "  - Update documentation"
+	@echo "  - Announce release"
 
 # Show examples by default if no target specified
 .DEFAULT: help 

@@ -1,0 +1,252 @@
+name: Account Cleanup System Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'scripts/kawaiisec-account-cleanup.sh'
+      - 'config/account_whitelist.txt'
+      - '.github/workflows/account-cleanup-test.yml'
+
+jobs:
+  account-cleanup-test:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup test environment
+      run: |
+        # Install required packages
+        sudo apt-get update
+        sudo apt-get install -y adduser sudo
+        
+        # Make script executable
+        chmod +x scripts/kawaiisec-account-cleanup.sh
+        
+    - name: Create test accounts
+      run: |
+        # Create suspicious accounts that should be detected
+        sudo useradd -m -s /bin/bash demo-user
+        sudo useradd -m -s /bin/bash test-account
+        sudo useradd -m -s /bin/bash student123
+        sudo useradd -m -s /bin/bash guest-temp
+        sudo useradd -m -s /bin/bash lab-test
+        sudo useradd -m -s /bin/bash admin-demo
+        
+        # Create legitimate accounts that should be preserved
+        sudo useradd -m -s /bin/bash legitimate-user
+        sudo useradd -m -s /bin/bash instructor-real
+        sudo useradd -m -s /bin/bash system-admin
+        
+        echo "Created test accounts:"
+        grep -E "(demo|test|student|guest|lab|admin|legitimate|instructor|system)" /etc/passwd | cut -d: -f1
+        
+    - name: Setup account whitelist
+      run: |
+        # Create config directory
+        sudo mkdir -p /etc/kawaiisec
+        
+        # Create whitelist with legitimate accounts
+        sudo tee /etc/kawaiisec/account_whitelist.txt > /dev/null << 'EOF'
+        # Test whitelist for CI
+        legitimate-user
+        instructor-real
+        system-admin
+        EOF
+        
+        echo "Whitelist contents:"
+        cat /etc/kawaiisec/account_whitelist.txt
+        
+    - name: Test account detection (dry-run)
+      run: |
+        echo "Running account scan (dry-run)..."
+        sudo scripts/kawaiisec-account-cleanup.sh scan || true
+        
+        # Check log file exists
+        if [ -f /var/log/kawaiisec-account-cleanup.log ]; then
+          echo "Log file created successfully"
+          echo "Log contents:"
+          cat /var/log/kawaiisec-account-cleanup.log
+        else
+          echo "❌ Log file not created"
+          exit 1
+        fi
+        
+    - name: Verify suspicious accounts detected
+      run: |
+        # Check that suspicious accounts were flagged
+        log_file="/var/log/kawaiisec-account-cleanup.log"
+        
+        suspicious_accounts=("demo-user" "test-account" "student123" "guest-temp" "lab-test" "admin-demo")
+        legitimate_accounts=("legitimate-user" "instructor-real" "system-admin")
+        
+        echo "Verifying suspicious account detection..."
+        for account in "${suspicious_accounts[@]}"; do
+          if grep -q "SUSPICIOUS: $account" "$log_file"; then
+            echo "✅ Detected suspicious account: $account"
+          else
+            echo "❌ Failed to detect suspicious account: $account"
+            exit 1
+          fi
+        done
+        
+        echo "Verifying whitelist protection..."
+        for account in "${legitimate_accounts[@]}"; do
+          if grep -q "WHITELISTED: $account" "$log_file"; then
+            echo "✅ Protected whitelisted account: $account"
+          else
+            echo "❌ Failed to protect whitelisted account: $account"
+            # Note: This might not be an error if account doesn't match patterns
+          fi
+        done
+        
+    - name: Test account removal (force mode)
+      run: |
+        echo "Testing account removal in non-interactive mode..."
+        
+        # Run cleanup in force mode
+        sudo scripts/kawaiisec-account-cleanup.sh --non-interactive --force cleanup || true
+        
+        # Verify suspicious accounts were removed
+        suspicious_accounts=("demo-user" "test-account" "student123" "guest-temp" "lab-test" "admin-demo")
+        for account in "${suspicious_accounts[@]}"; do
+          if ! id "$account" 2>/dev/null; then
+            echo "✅ Successfully removed suspicious account: $account"
+          else
+            echo "❌ Failed to remove suspicious account: $account"
+            exit 1
+          fi
+        done
+        
+        # Verify legitimate accounts still exist
+        legitimate_accounts=("legitimate-user" "instructor-real" "system-admin")
+        for account in "${legitimate_accounts[@]}"; do
+          if id "$account" 2>/dev/null; then
+            echo "✅ Preserved legitimate account: $account"
+          else
+            echo "❌ Accidentally removed legitimate account: $account"
+            exit 1
+          fi
+        done
+        
+    - name: Test account locking mode
+      run: |
+        echo "Testing account locking mode..."
+        
+        # Create more test accounts
+        sudo useradd -m -s /bin/bash demo-lock-test
+        sudo useradd -m -s /bin/bash test-lock-demo
+        
+        # Test lock-only mode
+        sudo scripts/kawaiisec-account-cleanup.sh --lock-only --non-interactive --force cleanup || true
+        
+        # Verify accounts exist but are locked
+        for account in demo-lock-test test-lock-demo; do
+          if id "$account" 2>/dev/null; then
+            echo "✅ Account $account still exists"
+            # Check if account is locked
+            if sudo passwd -S "$account" | grep -q " L "; then
+              echo "✅ Account $account is locked"
+            else
+              echo "❌ Account $account should be locked but isn't"
+              exit 1
+            fi
+          else
+            echo "❌ Account $account was removed instead of locked"
+            exit 1
+          fi
+        done
+        
+    - name: Generate test report
+      run: |
+        echo "Generating final test report..."
+        
+        # Show final system state
+        echo "=== FINAL ACCOUNT STATE ==="
+        echo "All users with UID >= 1000:"
+        awk -F: '$3 >= 1000 && $1 != "nobody" {print $1 " (UID: " $3 ")"}' /etc/passwd
+        
+        echo ""
+        echo "=== LOG SUMMARY ==="
+        if [ -f /var/log/kawaiisec-account-cleanup.log ]; then
+          tail -20 /var/log/kawaiisec-account-cleanup.log
+        fi
+        
+        echo ""
+        echo "=== TEST RESULTS ==="
+        echo "✅ Account detection working correctly"
+        echo "✅ Whitelist protection working correctly" 
+        echo "✅ Account removal working correctly"
+        echo "✅ Account locking working correctly"
+        echo "✅ Logging system working correctly"
+        
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: account-cleanup-test-results
+        path: |
+          /var/log/kawaiisec-account-cleanup.log
+          /tmp/kawaiisec-account-cleanup-report-*.txt
+        retention-days: 30
+
+  security-scan:
+    runs-on: ubuntu-22.04
+    needs: account-cleanup-test
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Security scan of account cleanup script
+      run: |
+        # Install security scanning tools
+        sudo apt-get update
+        sudo apt-get install -y shellcheck
+        
+        echo "Running security analysis..."
+        
+        # Static analysis with shellcheck
+        echo "=== ShellCheck Analysis ==="
+        shellcheck scripts/kawaiisec-account-cleanup.sh || true
+        
+        # Check for common security issues
+        echo "=== Security Pattern Check ==="
+        
+        # Check for proper privilege escalation
+        if grep -q "check_root" scripts/kawaiisec-account-cleanup.sh; then
+          echo "✅ Root privilege check present"
+        else
+          echo "❌ Missing root privilege check"
+          exit 1
+        fi
+        
+        # Check for input validation
+        if grep -q "set -euo pipefail" scripts/kawaiisec-account-cleanup.sh; then
+          echo "✅ Bash strict mode enabled"
+        else
+          echo "❌ Missing bash strict mode"
+          exit 1
+        fi
+        
+        # Check for logging
+        if grep -q "log()" scripts/kawaiisec-account-cleanup.sh; then
+          echo "✅ Logging function present"
+        else
+          echo "❌ Missing logging function"
+          exit 1
+        fi
+        
+        # Check for whitelist validation
+        if grep -q "is_whitelisted" scripts/kawaiisec-account-cleanup.sh; then
+          echo "✅ Whitelist validation present"
+        else
+          echo "❌ Missing whitelist validation"
+          exit 1
+        fi
+        
+        echo "Security scan completed successfully" 

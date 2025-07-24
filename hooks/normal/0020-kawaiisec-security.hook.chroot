@@ -1,0 +1,226 @@
+#!/bin/bash
+
+# KawaiiSec OS Security Tools Setup Hook
+# Configures security tools and lab environments during ISO build
+
+set -e
+
+echo "🛡️  Setting up KawaiiSec security tools..."
+
+# Create directories for security tools
+echo "📁 Creating security tool directories..."
+mkdir -p /opt/kawaiisec/{tools,labs,logs}
+mkdir -p /opt/kawaiisec/labs/{docker,vagrant,custom}
+mkdir -p /var/lib/kawaiisec
+
+# Set proper permissions
+chmod 755 /opt/kawaiisec
+chmod 755 /opt/kawaiisec/{tools,labs,logs}
+chmod 755 /var/lib/kawaiisec
+
+# Configure Metasploit
+echo "🗃️  Configuring Metasploit..."
+if [ -d /usr/share/metasploit-framework ]; then
+    # Create database configuration
+    mkdir -p /opt/metasploit-framework/config
+    
+    # Don't initialize database during build - will be done on first boot
+    echo "# Metasploit database will be initialized on first boot" > /opt/metasploit-framework/config/database.yml
+fi
+
+# Configure Docker for security tools
+echo "🐳 Configuring Docker for security tools..."
+if command -v docker >/dev/null 2>&1; then
+    # Create docker group
+    groupadd -f docker
+    
+    # Configure Docker daemon for security lab use
+    mkdir -p /etc/docker
+    cat > /etc/docker/daemon.json << 'EOF'
+{
+    "storage-driver": "overlay2",
+    "log-driver": "json-file",
+    "log-opts": {
+        "max-size": "10m",
+        "max-file": "3"
+    },
+    "default-address-pools": [
+        {
+            "base": "172.17.0.0/16",
+            "size": 24
+        }
+    ]
+}
+EOF
+fi
+
+# Set up lab launcher scripts
+echo "🧪 Setting up lab launchers..."
+mkdir -p /usr/local/bin
+
+# Create DVWA launcher
+cat > /usr/local/bin/launch-dvwa.sh << 'EOF'
+#!/bin/bash
+echo "🌸 Launching DVWA (Damn Vulnerable Web Application)..."
+docker run -d --name dvwa -p 8080:80 vulnerables/web-dvwa:latest
+echo "✅ DVWA launched at http://localhost:8080"
+echo "📝 Default credentials: admin/password"
+EOF
+
+# Create Juice Shop launcher
+cat > /usr/local/bin/launch-juice-shop.sh << 'EOF'
+#!/bin/bash
+echo "🌸 Launching OWASP Juice Shop..."
+docker run -d --name juice-shop -p 3000:3000 bkimminich/juice-shop:latest
+echo "✅ Juice Shop launched at http://localhost:3000"
+EOF
+
+# Create Metasploitable launcher
+cat > /usr/local/bin/launch-metasploitable.sh << 'EOF'
+#!/bin/bash
+echo "🌸 Launching Metasploitable3..."
+echo "⚠️  This requires Vagrant and VirtualBox"
+echo "📁 Navigate to a directory where you want to set up Metasploitable3"
+echo "🔗 Run: git clone https://github.com/rapid7/metasploitable3.git"
+echo "📝 Then follow the setup instructions in the README"
+EOF
+
+# Create lab cleanup script
+cat > /usr/local/bin/cleanup-labs.sh << 'EOF'
+#!/bin/bash
+echo "🧹 Cleaning up lab environments..."
+docker stop $(docker ps -q) 2>/dev/null || true
+docker rm $(docker ps -aq) 2>/dev/null || true
+echo "✅ Lab cleanup completed"
+EOF
+
+# Make scripts executable
+chmod +x /usr/local/bin/launch-*.sh
+chmod +x /usr/local/bin/cleanup-labs.sh
+
+# Configure Wireshark for non-root usage
+echo "🦈 Configuring Wireshark..."
+if [ -f /usr/bin/dumpcap ]; then
+    # Allow non-root users to capture packets
+    groupadd -f wireshark
+    chgrp wireshark /usr/bin/dumpcap
+    chmod 754 /usr/bin/dumpcap
+    setcap cap_net_raw,cap_net_admin=eip /usr/bin/dumpcap
+fi
+
+# Configure John The Ripper
+echo "🔓 Configuring John The Ripper..."
+if [ -d /usr/share/john ]; then
+    # Ensure wordlists are accessible
+    chmod -R 644 /usr/share/john/password.lst 2>/dev/null || true
+fi
+
+# Set up firewall configuration
+echo "🔥 Setting up firewall configuration..."
+if command -v ufw >/dev/null 2>&1; then
+    # Reset UFW to defaults
+    ufw --force reset
+    
+    # Set default policies
+    ufw default deny incoming
+    ufw default allow outgoing
+    
+    # Don't enable UFW yet - will be configured by kawaiisec-firewall-setup.sh
+    echo "Firewall will be configured on first boot"
+fi
+
+# Configure SSH
+echo "🔑 Configuring SSH..."
+if [ -f /etc/ssh/sshd_config ]; then
+    # Create backup
+    cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+    
+    # Basic hardening - will be enhanced by security scripts
+    sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    
+    # Disable SSH for live system - will be enabled post-install
+    systemctl disable ssh || true
+fi
+
+# Set up security tool aliases
+echo "⚡ Creating security tool aliases..."
+cat > /etc/profile.d/kawaiisec-aliases.sh << 'EOF'
+# KawaiiSec OS Security Tool Aliases
+
+# Network scanning
+alias pinmap='nmap -sS -O -v'
+alias quickmap='nmap -T4 -F'
+alias kawaii-scan='nmap -sS -sV -O --script vuln'
+
+# Web application testing
+alias dirbuster='dirb'
+alias kawaii-web='wfuzz -c -z file,/usr/share/wordlists/dirb/common.txt'
+
+# Password cracking
+alias johncrack='john --wordlist=/usr/share/wordlists/rockyou.txt'
+alias hydraforce='hydra -L /usr/share/wordlists/metasploit/unix_users.txt -P /usr/share/wordlists/rockyou.txt'
+
+# Network monitoring
+alias netmon='netstat -tulpn'
+alias portmon='ss -tulpn'
+
+# System monitoring
+alias sysmon='htop'
+alias logmon='tail -f /var/log/syslog'
+
+# Lab management
+alias launch-dvwa='launch-dvwa.sh'
+alias launch-juice='launch-juice-shop.sh'
+alias cleanup-labs='cleanup-labs.sh'
+
+# Kawaii commands
+alias kawaii-help='kawaiisec-help.sh'
+alias kawaii-status='systemctl status kawaiisec-*'
+EOF
+
+chmod 644 /etc/profile.d/kawaiisec-aliases.sh
+
+# Create desktop entries for security tools
+echo "🖥️  Creating desktop entries for security tools..."
+mkdir -p /usr/share/applications/kawaiisec-tools
+
+# Burp Suite desktop entry
+if command -v burpsuite >/dev/null 2>&1; then
+    cat > /usr/share/applications/kawaiisec-tools/burpsuite.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Burp Suite
+Comment=Web Application Security Scanner
+Exec=burpsuite
+Icon=burpsuite
+Terminal=false
+Categories=Network;Security;
+StartupNotify=true
+EOF
+fi
+
+# OWASP ZAP desktop entry
+if command -v zaproxy >/dev/null 2>&1; then
+    cat > /usr/share/applications/kawaiisec-tools/zaproxy.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=OWASP ZAP
+Comment=Web Application Security Scanner
+Exec=zaproxy
+Icon=zaproxy
+Terminal=false
+Categories=Network;Security;
+StartupNotify=true
+EOF
+fi
+
+# Wireshark desktop entry (already exists, but ensure in our category)
+if [ -f /usr/share/applications/wireshark.desktop ]; then
+    # Add to our security tools category
+    echo "Categories=Network;Security;" >> /usr/share/applications/wireshark.desktop
+fi
+
+echo "✅ KawaiiSec security tools setup completed!" 

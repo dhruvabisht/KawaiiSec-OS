@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# KawaiiSec OS Live-Build Build Script
+# Executes the main ISO build process
+
+set -e
+
+echo "🚀 Starting KawaiiSec OS ISO build process..."
+
+# Check dependencies
+if ! command -v lb &> /dev/null; then
+    echo "❌ Error: live-build not installed. Please run: sudo apt install live-build"
+    exit 1
+fi
+
+# Execute build
+lb build noauto "${@}" 2>&1 | tee build.log
+
+# Check if build was successful
+if [ -f live-image-amd64.hybrid.iso ]; then
+    echo "✅ KawaiiSec OS ISO build completed successfully!"
+    echo "📦 ISO location: $(pwd)/live-image-amd64.hybrid.iso"
+    echo "📊 ISO size: $(du -h live-image-amd64.hybrid.iso | cut -f1)"
+else
+    echo "❌ Build failed. Check build.log for details."
+    exit 1
+fi 

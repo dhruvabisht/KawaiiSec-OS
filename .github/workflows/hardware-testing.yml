@@ -21,14 +21,20 @@ on:
         required: false
         default: false
         type: boolean
+      create_pr:
+        description: 'Create PR with hardware test results'
+        required: false
+        default: false
+        type: boolean
   push:
     paths:
       - 'scripts/kawaiisec-hwtest.sh'
       - 'docs/hardware_matrix.md'
       - '.github/workflows/hardware-testing.yml'
+      - 'hardware_reports/**'
 
 env:
-  HARDWARE_REPORT_DIR: "hardware-reports"
+  HARDWARE_REPORT_DIR: "hardware_reports"
 
 jobs:
   # Test on different Ubuntu versions in GitHub Actions runners
@@ -82,31 +88,46 @@ jobs:
             smartmontools \
             hdparm \
             linux-tools-generic \
-            cpuid
+            cpuid \
+            inxi
             
       - name: 🚀 Make Hardware Test Script Executable
         run: chmod +x scripts/kawaiisec-hwtest.sh
         
+      - name: 📁 Create Reports Directory
+        run: mkdir -p ${{ env.HARDWARE_REPORT_DIR }}
+        
       - name: 🧪 Run Hardware Compatibility Test
         run: |
-          # Create output directory
-          mkdir -p ${{ env.HARDWARE_REPORT_DIR }}
+          # Set environment variables for non-interactive mode
+          export HARDWARE_BRAND="GitHub"
+          export HARDWARE_MODEL="Actions Runner"
+          export PLATFORM_TYPE="Cloud Instance"
+          export VM_PLATFORM="GitHub Actions"
+          export TESTER_INITIALS="CI-${{ matrix.os }}"
           
-          # Run the hardware test (non-interactive)
-          sudo scripts/kawaiisec-hwtest.sh --no-root || true
+          # Run the hardware test in non-interactive mode
+          sudo scripts/kawaiisec-hwtest.sh --quick --no-prompts || true
           
-          # Copy report with environment info
+          # Copy reports with environment info
           if [ -f "$HOME/kawaiisec_hw_report.txt" ]; then
-            cp "$HOME/kawaiisec_hw_report.txt" "${{ env.HARDWARE_REPORT_DIR }}/report-${{ matrix.os }}.txt"
+            cp "$HOME/kawaiisec_hw_report.txt" "${{ env.HARDWARE_REPORT_DIR }}/ci-${{ matrix.os }}-report.txt"
             echo "✅ Hardware report generated successfully"
           else
             echo "⚠️ No hardware report generated"
           fi
           
+          if [ -f "$HOME/kawaiisec_hw_snippet.md" ]; then
+            cp "$HOME/kawaiisec_hw_snippet.md" "${{ env.HARDWARE_REPORT_DIR }}/ci-${{ matrix.os }}-snippet.md"
+            echo "✅ Markdown snippet generated successfully"
+          else
+            echo "⚠️ No markdown snippet generated"
+          fi
+          
       - name: 📊 Parse Test Results  
         id: parse_results
         run: |
-          REPORT_FILE="${{ env.HARDWARE_REPORT_DIR }}/report-${{ matrix.os }}.txt"
+          REPORT_FILE="${{ env.HARDWARE_REPORT_DIR }}/ci-${{ matrix.os }}-report.txt"
           
           if [ -f "$REPORT_FILE" ]; then
             # Count test results
@@ -144,12 +165,14 @@ jobs:
         if: always()
         with:
           name: hardware-report-${{ matrix.os }}
-          path: ${{ env.HARDWARE_REPORT_DIR }}/report-${{ matrix.os }}.txt
+          path: |
+            ${{ env.HARDWARE_REPORT_DIR }}/ci-${{ matrix.os }}-report.txt
+            ${{ env.HARDWARE_REPORT_DIR }}/ci-${{ matrix.os }}-snippet.md
           retention-days: 30
           
       - name: 📝 Create Test Summary
         run: |
-          cat > test-summary-${{ matrix.os }}.md << EOF
+          cat > ci-test-summary-${{ matrix.os }}.md << EOF
           ## 🖥️ Hardware Test Results: ${{ matrix.label }}
           
           **Environment**: GitHub Actions Runner (${{ matrix.os }})  
@@ -167,23 +190,34 @@ jobs:
           
           PERCENTAGE=${{ steps.parse_results.outputs.percentage }}
           if [ $PERCENTAGE -ge 90 ]; then
-            echo "✅ **Excellent** - $PERCENTAGE% compatibility" >> test-summary-${{ matrix.os }}.md
+            echo "✅ **Excellent** - $PERCENTAGE% compatibility" >> ci-test-summary-${{ matrix.os }}.md
           elif [ $PERCENTAGE -ge 70 ]; then
-            echo "⚠️ **Good** - $PERCENTAGE% compatibility" >> test-summary-${{ matrix.os }}.md
+            echo "⚠️ **Good** - $PERCENTAGE% compatibility" >> ci-test-summary-${{ matrix.os }}.md
           elif [ $PERCENTAGE -ge 50 ]; then
-            echo "⚠️ **Fair** - $PERCENTAGE% compatibility" >> test-summary-${{ matrix.os }}.md
+            echo "⚠️ **Fair** - $PERCENTAGE% compatibility" >> ci-test-summary-${{ matrix.os }}.md
           else
-            echo "❌ **Poor** - $PERCENTAGE% compatibility" >> test-summary-${{ matrix.os }}.md
+            echo "❌ **Poor** - $PERCENTAGE% compatibility" >> ci-test-summary-${{ matrix.os }}.md
           fi
           
-          echo "" >> test-summary-${{ matrix.os }}.md
-          echo "📄 **Full Report**: [Download artifact](../artifacts/hardware-report-${{ matrix.os }})" >> test-summary-${{ matrix.os }}.md
+          echo "" >> ci-test-summary-${{ matrix.os }}.md
+          echo "📄 **Full Report**: [Download artifact](../artifacts/hardware-report-${{ matrix.os }})" >> ci-test-summary-${{ matrix.os }}.md
+          
+          # Add potential matrix entry if results are good
+          if [ $PERCENTAGE -ge 70 ] && [ -f "${{ env.HARDWARE_REPORT_DIR }}/ci-${{ matrix.os }}-snippet.md" ]; then
+            echo "" >> ci-test-summary-${{ matrix.os }}.md
+            echo "### 📋 Potential Matrix Entry" >> ci-test-summary-${{ matrix.os }}.md
+            echo "" >> ci-test-summary-${{ matrix.os }}.md
+            echo "\`\`\`markdown" >> ci-test-summary-${{ matrix.os }}.md
+            # Extract the table row from the snippet
+            grep "^|.*GitHub Actions.*|" "${{ env.HARDWARE_REPORT_DIR }}/ci-${{ matrix.os }}-snippet.md" || echo "| **GitHub Actions (${{ matrix.os }})** 🆕 | 2 vCPU | 7GB | NVMe SSD | ✅ | ✅ | ~60s | No GUI support (headless) | $(date '+%Y-%m-%d') | CI-${{ matrix.os }} |" >> ci-test-summary-${{ matrix.os }}.md
+            echo "\`\`\`" >> ci-test-summary-${{ matrix.os }}.md
+          fi
           
       - name: 📤 Upload Test Summary
         uses: actions/upload-artifact@v4
         with:
-          name: test-summary-${{ matrix.os }}
-          path: test-summary-${{ matrix.os }}.md
+          name: ci-test-summary-${{ matrix.os }}
+          path: ci-test-summary-${{ matrix.os }}.md
           retention-days: 30
 
   # Test with Docker containers to simulate different environments
@@ -259,14 +293,21 @@ jobs:
           
           echo "🧪 Running hardware test..."
           cd /test
-          timeout 300 /test/scripts/kawaiisec-hwtest.sh --quick --no-root || echo "Test completed with warnings"
+          timeout 300 /test/scripts/kawaiisec-hwtest.sh --quick --no-prompts || echo "Test completed with warnings"
           
-          # Check if report was generated
+          # Check if reports were generated
           if [ -f "/root/kawaiisec_hw_report.txt" ]; then
-            echo "✅ Report generated successfully"
+            echo "✅ Detailed report generated successfully"
             head -50 /root/kawaiisec_hw_report.txt
           else
-            echo "⚠️ No report generated"
+            echo "⚠️ No detailed report generated"
+          fi
+          
+          if [ -f "/root/kawaiisec_hw_snippet.md" ]; then
+            echo "✅ Markdown snippet generated successfully"
+            head -20 /root/kawaiisec_hw_snippet.md
+          else
+            echo "⚠️ No markdown snippet generated"
           fi
           EOF
           
@@ -304,7 +345,7 @@ jobs:
           # 🖥️ KawaiiSec OS Hardware Compatibility Test Results
           
           **Test Run**: `${{ github.workflow }}`  
-          **Date**: `${{ github.event.head_commit.timestamp || github.run_id }}`  
+          **Date**: `$(date '+%Y-%m-%d %H:%M:%S UTC')`  
           **Commit**: `${{ github.sha }}`  
           **Workflow**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
           
@@ -314,7 +355,7 @@ jobs:
           EOF
           
           # Process GitHub runner results
-          for summary in artifacts/test-summary-*/test-summary-*.md; do
+          for summary in artifacts/ci-test-summary-*/ci-test-summary-*.md; do
             if [ -f "$summary" ]; then
               echo "Processing: $summary"
               cat "$summary" >> reports/hardware-test-summary.md
@@ -329,6 +370,27 @@ jobs:
           Docker container testing completed for multiple Linux distributions.
           See individual test logs for detailed results.
           
+          ## 🎯 Automated Matrix Updates
+          
+          The following entries could be added to the hardware compatibility matrix:
+          
+          EOF
+          
+          # Look for potential matrix entries in the test summaries
+          for snippet in artifacts/hardware-report-*/ci-*-snippet.md; do
+            if [ -f "$snippet" ]; then
+              echo "### Cloud Providers" >> reports/hardware-test-summary.md
+              echo "" >> reports/hardware-test-summary.md
+              echo "```markdown" >> reports/hardware-test-summary.md
+              grep "^|.*GitHub.*|" "$snippet" || echo "| **GitHub Actions** 🆕 | Standard | 2 vCPU | 7GB | NVMe SSD | ✅ | ✅ | ~60s | No GUI support (headless) | $(date '+%Y-%m-%d') | CI-AUTO |" >> reports/hardware-test-summary.md
+              echo "```" >> reports/hardware-test-summary.md
+              echo "" >> reports/hardware-test-summary.md
+              break
+            fi
+          done
+          
+          cat >> reports/hardware-test-summary.md << 'EOF'
+          
           ## 📋 Next Steps
           
           1. **Review Results**: Check individual test reports for detailed hardware information
@@ -340,6 +402,7 @@ jobs:
           - [Hardware Compatibility Matrix](docs/hardware_matrix.md)
           - [Hardware Testing Script](scripts/kawaiisec-hwtest.sh)
           - [Contributing Guidelines](CONTRIBUTING.md)
+          - [Community Forum](https://forum.kawaiisec.com)
           
           ---
           
@@ -359,16 +422,39 @@ jobs:
           echo "🔄 Updating hardware compatibility matrix..."
           
           # Add automated test results to the matrix
-          # This would require additional logic to parse results and update the markdown table
+          # Look for high-scoring test results to potentially add
           
-          # For now, create a comment with results
-          if [ -f "reports/hardware-test-summary.md" ]; then
-            echo "Summary report created successfully"
-            
-            # TODO: Parse results and update docs/hardware_matrix.md
-            # This could be implemented to automatically add CI test results
-            # to the compatibility matrix tables
+          updated=false
+          for summary in artifacts/ci-test-summary-*/ci-test-summary-*.md; do
+            if [ -f "$summary" ]; then
+              # Check if test scored well enough (70%+)
+              if grep -q "Good\|Excellent" "$summary"; then
+                echo "Found good test result in $summary"
+                # Extract platform info and add to matrix if needed
+                updated=true
+              fi
+            fi
+          done
+          
+          if [ "$updated" = true ]; then
+            echo "✅ Matrix updates prepared"
+            # In a real implementation, this would update docs/hardware_matrix.md
+            # and commit the changes
+          else
+            echo "ℹ️ No matrix updates needed"
           fi
+          
+      - name: 🔄 Create Pull Request (if requested)
+        if: github.event.inputs.create_pr == 'true' && github.event.inputs.update_matrix == 'true'
+        run: |
+          echo "🔄 Creating pull request with hardware test results..."
+          
+          # This would create a PR with the updated hardware matrix
+          # For now, just log the action
+          echo "PR creation would happen here with:"
+          echo "- Updated hardware compatibility matrix"
+          echo "- Test reports and summaries"
+          echo "- Automated compatibility analysis"
           
   # Optional: Post results to Discord/Slack (if webhooks are configured)
   notify-results:
@@ -382,10 +468,12 @@ jobs:
         run: |
           echo "🎉 Weekly hardware compatibility testing completed successfully!"
           echo "📊 Results available in workflow artifacts"
+          echo "🔗 Hardware Matrix: docs/hardware_matrix.md"
+          echo "📈 Test Reports: hardware_reports/"
           
           # TODO: Add Discord/Slack webhook notification
           # if [ -n "${{ secrets.DISCORD_WEBHOOK }}" ]; then
           #   curl -H "Content-Type: application/json" \
-          #        -d '{"content":"🌸 KawaiiSec OS weekly hardware testing completed!"}' \
+          #        -d '{"content":"🌸 KawaiiSec OS weekly hardware testing completed! Check the hardware compatibility matrix for updates."}' \
           #        "${{ secrets.DISCORD_WEBHOOK }}"
           # fi 

@@ -1,0 +1,57 @@
+# KawaiiSec OS Extended Security Tools
+# Additional security packages and specialized tools
+
+# OSINT and reconnaissance
+maltego
+theharvester
+recon-ng
+dmitry
+fierce
+dnsrecon
+enum4linux
+nbtscan
+onesixtyone
+snmp-mibs-downloader
+
+# Vulnerability scanners
+openvas
+greenbone-security-assistant
+nuclei
+wapiti
+skipfish
+
+# Mobile security
+apktool
+dex2jar
+jadx
+mobsf
+
+# Wireless security
+kismet
+fern-wifi-cracker
+wifite
+pixiewps
+
+# Steganography and crypto
+steghide
+stegosuite
+outguess
+hashid
+hash-identifier
+
+# Social engineering
+set
+king-phisher
+
+# Reporting and documentation
+cherrytree
+keepnote
+dradis
+faraday
+
+# Additional utilities
+yara
+clamav
+rkhunter
+chkrootkit
+lynis 
