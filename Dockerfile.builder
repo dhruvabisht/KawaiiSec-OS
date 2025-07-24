@@ -1,0 +1,50 @@
+FROM debian:bookworm
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    live-build \
+    debootstrap \
+    xorriso \
+    isolinux \
+    syslinux-common \
+    syslinux \
+    dosfstools \
+    squashfs-tools \
+    qemu-system-x86 \
+    qemu-utils \
+    git \
+    sudo \
+    build-essential \
+    wget \
+    curl \
+    file \
+    rsync \
+    cpio \
+    gzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install memtest86+ separately if available (architecture dependent)
+RUN apt-get update && apt-get install -y memtest86+ || echo "memtest86+ not available for this architecture" && rm -rf /var/lib/apt/lists/*
+
+# Create build user with sudo privileges
+RUN useradd -m -s /bin/bash builder && \
+    echo 'builder ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && \
+    mkdir -p /home/builder/workspace
+
+# Set up working directory
+USER builder
+WORKDIR /home/builder/workspace
+
+# Copy build scripts (if running from project directory)
+COPY --chown=builder:builder . /home/builder/workspace/
+
+# Make build script executable
+RUN chmod +x build-iso.sh 2>/dev/null || true
+
+# Default command
+CMD ["/bin/bash"] 

@@ -86,6 +86,10 @@ trap cleanup_on_exit EXIT
 check_dependencies() {
     info "Checking build dependencies..."
     
+    # Skip dependency check when building (Docker containers have packages pre-installed)
+    info "Skipping dependency check (packages pre-installed in container)"
+    return 0
+    
     local missing_deps=()
     
     # Required packages

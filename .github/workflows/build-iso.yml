@@ -1,0 +1,290 @@
+name: 🌸 Build KawaiiSec OS ISO
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version string for the ISO'
+        required: false
+        default: ''
+      clean_build:
+        description: 'Clean build (remove previous artifacts)'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  build-iso:
+    name: 🔨 Build KawaiiSec OS ISO
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: 🔧 Set up build environment
+      run: |
+        echo "🌸 Setting up KawaiiSec OS build environment..."
+        
+        # Update system
+        sudo apt-get update
+        
+        # Install required packages
+        sudo apt-get install -y \
+          live-build \
+          debootstrap \
+          xorriso \
+          isolinux \
+          syslinux-utils \
+          memtest86+ \
+          dosfstools \
+          squashfs-tools \
+          qemu-system-x86 \
+          qemu-utils \
+          file \
+          rsync
+        
+        # Show versions
+        echo "📋 Installed versions:"
+        live-build --version || echo "live-build version not available"
+        debootstrap --version || echo "debootstrap version not available"
+        xorriso -version 2>&1 | head -1 || echo "xorriso version not available"
+        
+    - name: 💾 Check disk space
+      run: |
+        echo "💾 Available disk space:"
+        df -h
+        echo ""
+        echo "📊 Memory information:"
+        free -h
+        
+    - name: 🏗️ Prepare build
+      run: |
+        echo "🏗️ Preparing build environment..."
+        
+        # Set version if provided
+        if [ -n "${{ github.event.inputs.version }}" ]; then
+          export VERSION="${{ github.event.inputs.version }}"
+          echo "📝 Using custom version: $VERSION"
+        else
+          export VERSION="$(date +%Y.%m.%d)-$(git rev-parse --short HEAD)"
+          echo "📝 Using auto-generated version: $VERSION"
+        fi
+        
+        # Make build script executable
+        chmod +x build-iso.sh
+        
+        # Show build configuration
+        echo "📋 Build configuration:"
+        echo "  Version: $VERSION"
+        echo "  Clean build: ${{ github.event.inputs.clean_build || 'true' }}"
+        echo "  Commit: $(git rev-parse HEAD)"
+        echo "  Branch: ${GITHUB_REF#refs/heads/}"
+        
+    - name: 🚀 Build ISO
+      run: |
+        echo "🚀 Starting KawaiiSec OS ISO build..."
+        
+        # Set environment variables
+        export VERSION="${{ github.event.inputs.version || format('{0}-{1}', github.run_number, github.sha) }}"
+        export CLEAN_BUILD="${{ github.event.inputs.clean_build || 'true' }}"
+        
+        # Start build with timeout handling
+        timeout 7200 sudo -E ./build-iso.sh || {
+          echo "❌ Build timed out or failed"
+          exit 1
+        }
+        
+    - name: 📊 Build summary
+      if: always()
+      run: |
+        echo "📊 Build Summary:"
+        echo "================"
+        
+        # Show build artifacts
+        echo "📦 Build artifacts:"
+        ls -la *.iso *.sha256 *.md5 *.txt 2>/dev/null || echo "No artifacts found"
+        
+        # Show disk usage
+        echo ""
+        echo "💾 Disk usage after build:"
+        df -h
+        
+        # Show build logs (last 50 lines)
+        echo ""
+        echo "📋 Build log (last 50 lines):"
+        if [ -f build-*.log ]; then
+          tail -50 build-*.log
+        else
+          echo "No build log found"
+        fi
+        
+    - name: ✅ Validate ISO
+      if: success()
+      run: |
+        echo "✅ Validating built ISO..."
+        
+        # Find the ISO file
+        ISO_FILE=$(ls kawaiisec-os-*.iso 2>/dev/null | head -1)
+        
+        if [ -z "$ISO_FILE" ]; then
+          echo "❌ No ISO file found!"
+          exit 1
+        fi
+        
+        echo "📦 Found ISO: $ISO_FILE"
+        
+        # Basic validation
+        echo "🔍 Basic validation:"
+        file "$ISO_FILE"
+        
+        # Size check
+        ISO_SIZE=$(stat -c%s "$ISO_FILE")
+        ISO_SIZE_MB=$((ISO_SIZE / 1024 / 1024))
+        echo "📏 ISO size: ${ISO_SIZE_MB}MB"
+        
+        if [ "$ISO_SIZE_MB" -lt 100 ]; then
+          echo "❌ ISO size seems too small (${ISO_SIZE_MB}MB)"
+          exit 1
+        fi
+        
+        # Checksum validation
+        if [ -f "${ISO_FILE}.sha256" ]; then
+          echo "🔐 Validating SHA256 checksum..."
+          sha256sum -c "${ISO_FILE}.sha256"
+        fi
+        
+        # Run validation script if available
+        if [ -f "scripts/validate-iso.sh" ]; then
+          echo "🧪 Running validation script..."
+          chmod +x scripts/validate-iso.sh
+          sudo ./scripts/validate-iso.sh "$ISO_FILE"
+        fi
+        
+    - name: 🧪 Quick boot test
+      if: success()
+      run: |
+        echo "🧪 Running quick boot test..."
+        
+        ISO_FILE=$(ls kawaiisec-os-*.iso 2>/dev/null | head -1)
+        
+        if [ -n "$ISO_FILE" ]; then
+          echo "🚀 Testing ISO boot with QEMU..."
+          
+          # Test boot for 30 seconds
+          timeout 30 qemu-system-x86_64 \
+            -cdrom "$ISO_FILE" \
+            -m 2048 \
+            -display none \
+            -serial stdio \
+            -no-reboot \
+            -boot d || echo "Boot test completed (expected timeout)"
+            
+          echo "✅ Boot test completed"
+        fi
+        
+    - name: 📤 Upload ISO artifact
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: kawaiisec-os-iso-${{ github.run_number }}
+        path: |
+          kawaiisec-os-*.iso
+          *.sha256
+          *.md5
+          build-*.log
+          build-report-*.txt
+        retention-days: 30
+        compression-level: 0  # ISOs are already compressed
+        
+    - name: 📤 Upload build logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs-${{ github.run_number }}
+        path: |
+          build-*.log
+          build-report-*.txt
+        retention-days: 7
+        
+    - name: 🎉 Success notification
+      if: success()
+      run: |
+        echo "🎉 KawaiiSec OS ISO build completed successfully!"
+        echo ""
+        echo "📦 Artifacts:"
+        ls -la kawaiisec-os-*.iso *.sha256 *.md5 2>/dev/null || true
+        echo ""
+        echo "💡 Next steps:"
+        echo "  • Download the ISO from the Actions artifacts"
+        echo "  • Test in a virtual machine"
+        echo "  • Create a bootable USB drive"
+        echo "  • Deploy to physical hardware"
+        echo ""
+        echo "🌸 Happy hacking with KawaiiSec OS!"
+
+  # Optional: Create release if this is a tagged build
+  release:
+    name: 🚀 Create Release
+    needs: build-iso
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: 📥 Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: kawaiisec-os-iso-${{ github.run_number }}
+        
+    - name: 🚀 Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          kawaiisec-os-*.iso
+          *.sha256
+          *.md5
+        draft: false
+        prerelease: ${{ contains(github.ref, '-') }}
+        generate_release_notes: true
+        body: |
+          🌸 **KawaiiSec OS Release**
+          
+          This release contains the complete KawaiiSec OS ISO image ready for deployment.
+          
+          ## 📦 What's Included
+          - Complete penetration testing toolkit
+          - Educational lab environments  
+          - Advanced storage management
+          - Beautiful kawaii-themed desktop
+          
+          ## 🚀 Getting Started
+          1. Download the ISO file
+          2. Create a bootable USB drive or load in VM
+          3. Boot and follow the first-time setup wizard
+          
+          ## 🔐 Verification
+          Verify the download integrity using the provided checksums:
+          ```bash
+          sha256sum -c kawaiisec-os-*.sha256
+          md5sum -c kawaiisec-os-*.md5
+          ```
+          
+          ## 🎯 Testing
+          - **Virtual Machines:** UTM, VirtualBox, VMware, QEMU
+          - **Physical Hardware:** Create bootable USB with `dd` or Rufus
+          - **Minimum Requirements:** 4GB RAM, 20GB storage
+          
+          Happy hacking! 🌸
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
