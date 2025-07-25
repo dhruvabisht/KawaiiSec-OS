@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# KawaiiSec OS Syslinux Bootloader Branding Hook
+# Ensures syslinux boot menu shows KawaiiSec branding
+
+set -e
+
+echo "🚀 Applying KawaiiSec OS syslinux branding..."
+
+# Ensure syslinux configuration directory exists
+mkdir -p /usr/share/syslinux
+
+# Copy KawaiiSec syslinux configuration
+if [ -f /tmp/build-assets/config/bootloaders/syslinux/syslinux.cfg ]; then
+    echo "📝 Installing KawaiiSec syslinux configuration..."
+    cp /tmp/build-assets/config/bootloaders/syslinux/syslinux.cfg /usr/share/syslinux/isolinux.cfg || true
+    chmod 644 /usr/share/syslinux/isolinux.cfg
+    
+    # Validate the configuration was copied
+    if [ -f /usr/share/syslinux/isolinux.cfg ]; then
+        echo "✅ Syslinux configuration installed successfully"
+    else
+        echo "⚠️  Warning: Failed to install syslinux configuration"
+    fi
+else
+    echo "⚠️  Warning: Syslinux configuration not found in build assets"
+fi
+
+# Copy splash image if it exists
+if [ -f /tmp/build-assets/config/bootloaders/syslinux/splash.png ]; then
+    echo "🎨 Installing KawaiiSec splash image..."
+    cp /tmp/build-assets/config/bootloaders/syslinux/splash.png /usr/share/syslinux/splash.png || true
+    chmod 644 /usr/share/syslinux/splash.png
+fi
+
+# Update live-build syslinux configuration
+if [ -f /usr/share/syslinux/isolinux.cfg ]; then
+    echo "⚙️  Updating live-build syslinux configuration..."
+    
+    # Ensure the menu title shows KawaiiSec OS
+    sed -i 's/MENU TITLE .*/MENU TITLE KawaiiSec OS Live/' /usr/share/syslinux/isolinux.cfg || true
+    
+    # Update menu labels to show KawaiiSec branding
+    sed -i 's/MENU LABEL .*Live (amd64)/MENU LABEL ^KawaiiSec OS Live (amd64)/' /usr/share/syslinux/isolinux.cfg || true
+    sed -i 's/MENU LABEL .*Live (failsafe)/MENU LABEL KawaiiSec OS Live (^failsafe)/' /usr/share/syslinux/isolinux.cfg || true
+    
+    echo "✅ Syslinux configuration updated with KawaiiSec branding"
+else
+    echo "⚠️  Syslinux configuration file not found"
+fi
+
+echo "✅ KawaiiSec OS syslinux branding applied successfully!" 

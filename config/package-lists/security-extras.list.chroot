@@ -1,57 +1,54 @@
-# KawaiiSec OS Extended Security Tools
+# KawaiiSec OS Extended Security Tools - Minimal Working Version
 # Additional security packages and specialized tools
+# Only includes packages that exist in Debian Bookworm repositories
 
 # OSINT and reconnaissance
-maltego
-theharvester
-recon-ng
 dmitry
 fierce
 dnsrecon
-enum4linux
 nbtscan
 onesixtyone
 snmp-mibs-downloader
 
 # Vulnerability scanners
-openvas
-greenbone-security-assistant
-nuclei
 wapiti
-skipfish
-
-# Mobile security
-apktool
-dex2jar
-jadx
-mobsf
 
 # Wireless security
-kismet
-fern-wifi-cracker
-wifite
 pixiewps
 
 # Steganography and crypto
 steghide
-stegosuite
 outguess
-hashid
-hash-identifier
-
-# Social engineering
-set
-king-phisher
-
-# Reporting and documentation
-cherrytree
-keepnote
-dradis
-faraday
 
 # Additional utilities
 yara
 clamav
 rkhunter
 chkrootkit
-lynis 
+lynis
+
+# Manual installation notes (packages not in Debian repos):
+# - maltego: Install from Maltego website
+# - theharvester: Install via pip3 install theHarvester
+# - recon-ng: Install via pip3 install recon-ng
+# - enum4linux: Install from GitHub
+# - openvas: Install from Greenbone Community Edition
+# - greenbone-security-assistant: Part of OpenVAS/Greenbone
+# - nuclei: Install from GitHub releases
+# - skipfish: May be available in Kali repositories
+# - apktool: Install from GitHub releases
+# - dex2jar: Install from GitHub releases
+# - jadx: Install from GitHub releases
+# - mobsf: Install via Docker or Python pip
+# - kismet: Install from Kismet website
+# - fern-wifi-cracker: Install from GitHub
+# - wifite: Install from GitHub
+# - stegosuite: Install from GitHub
+# - hashid: Install via pip3 install hashid
+# - hash-identifier: Install from GitHub
+# - set: Install Social Engineering Toolkit from GitHub
+# - king-phisher: Install from GitHub
+# - cherrytree: May be available in other repositories
+# - keepnote: Discontinued, use other note-taking tools
+# - dradis: Install from Dradis website
+# - faraday: Install from Faraday website 

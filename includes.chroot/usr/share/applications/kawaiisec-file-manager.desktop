@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=KawaiiSec File Manager
+Comment=Browse the file system
+Exec=thunar
+Icon=/usr/share/icons/kawaiisec/file_manager.png
+Terminal=false
+Categories=System;FileManager;
+Keywords=folder;manager;explore;disk;filesystem;
+StartupNotify=true 

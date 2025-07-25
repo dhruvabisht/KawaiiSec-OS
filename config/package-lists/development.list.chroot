@@ -1,5 +1,6 @@
-# KawaiiSec OS Development Tools
+# KawaiiSec OS Development Tools - Minimal Working Version
 # Development, debugging, and research utilities
+# Only includes packages that exist in Debian Bookworm repositories
 
 # Advanced development
 gdb-multiarch
@@ -9,15 +10,13 @@ clang-tools
 valgrind
 strace
 ltrace
-objdump
-hexdump
+binutils
+bsdutils
 xxd
 
 # Scripting and automation
 bash-completion
 zsh
-zsh-autosuggestions
-zsh-syntax-highlighting
 tmux
 screen
 expect
@@ -30,18 +29,13 @@ meld
 # Text editors and IDEs
 emacs
 vim-gtk3
-sublime-text-installer
 
 # Database tools
 sqlite3
-mysql-client
+default-mysql-client
 postgresql-client
-redis-tools
-mongo-tools
 
 # API and web testing
-postman
-insomnia
 httpie
 
 # Documentation
@@ -50,8 +44,20 @@ texlive-latex-base
 texlive-latex-extra
 
 # System monitoring
-sysdig
 nethogs
 iotop
 powertop
-smartmontools 
+smartmontools
+
+# Manual installation notes (packages not in Debian repos):
+# - objdump: Already included in binutils package
+# - hexdump: Already included in bsdutils package  
+# - sublime-text-installer: Install from Sublime Text website
+# - mysql-client: Use default-mysql-client instead
+# - mongo-tools: Install from MongoDB official repository
+# - postman: Install as AppImage or from website
+# - insomnia: Install as AppImage or from website
+# - zsh-autosuggestions: Install from GitHub or Zsh plugin manager
+# - zsh-syntax-highlighting: Install from GitHub or Zsh plugin manager
+# - redis-tools: Install with redis-server package or use redis-cli
+# - sysdig: Install from Sysdig repository 

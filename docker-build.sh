@@ -72,17 +72,38 @@ run_build() {
         bash -c "
             echo '🌸 Starting KawaiiSec OS build...'
             echo '⚙️  Running on: \$(uname -m) architecture'
+            
+            # Copy project to a temp directory without mount restrictions
+            echo '📋 Setting up build environment without mount restrictions...'
+            sudo mkdir -p /tmp/kawaiisec-build
+            sudo cp -r /home/builder/workspace/* /tmp/kawaiisec-build/
+            cd /tmp/kawaiisec-build
+            
             chmod +x build-iso.sh
             sudo -E ./build-iso.sh
             
             # Copy ISO and related files to output directory for Mac export
             echo '📦 Copying build artifacts to output directory...'
-            if [ -f kawaiisec-os-*.iso ]; then
-                sudo cp kawaiisec-os-*.iso /home/builder/output/
-                sudo cp kawaiisec-os-*.iso.sha256 /home/builder/output/ 2>/dev/null || true
-                sudo cp kawaiisec-os-*.iso.md5 /home/builder/output/ 2>/dev/null || true
+            
+            # Find ISO files with better error handling
+            iso_files=\$(find . -name "kawaiisec-os-*.iso" -o -name "live-image-*.iso" 2>/dev/null || true)
+            
+            if [ -n "\$iso_files" ]; then
+                echo "Found ISO files: \$iso_files"
+                for iso_file in \$iso_files; do
+                    echo "Copying \$iso_file to output directory..."
+                    sudo cp "\$iso_file" /home/builder/output/
+                    
+                    # Copy related files if they exist
+                    base_name="\${iso_file%.iso}"
+                    sudo cp "\${base_name}.sha256" /home/builder/output/ 2>/dev/null || true
+                    sudo cp "\${base_name}.md5" /home/builder/output/ 2>/dev/null || true
+                done
+                
+                # Copy build reports and logs
                 sudo cp build-report-*.txt /home/builder/output/ 2>/dev/null || true
                 sudo cp build-*.log /home/builder/output/ 2>/dev/null || true
+                sudo cp *.log /home/builder/output/ 2>/dev/null || true
                 
                 # Fix file ownership for Mac compatibility
                 sudo chown -R \$(id -u):\$(id -g) /home/builder/output/
@@ -92,6 +113,12 @@ run_build() {
                 ls -la /home/builder/output/
             else
                 echo '❌ No ISO file found to export'
+                echo '🔍 Searching for any ISO files in build directory...'
+                find . -name "*.iso" -type f 2>/dev/null || echo "No ISO files found"
+                echo '📋 Build directory contents:'
+                ls -la
+                echo '📋 Live-build directory contents:'
+                ls -la live-image-* 2>/dev/null || echo "No live-image directory found"
                 exit 1
             fi
             
@@ -121,6 +148,18 @@ main() {
     
     check_docker
     create_output_dir
+    
+    # Run build validation before building
+    echo -e "${BLUE}🔍 Running build validation...${NC}"
+    if [ -f "./scripts/validate-build.sh" ]; then
+        chmod +x ./scripts/validate-build.sh
+        ./scripts/validate-build.sh || {
+            echo -e "${YELLOW}⚠️  Build validation found issues, but continuing...${NC}"
+        }
+    else
+        echo -e "${YELLOW}⚠️  Build validation script not found, skipping...${NC}"
+    fi
+    
     build_image
     run_build
     

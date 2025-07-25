@@ -11,11 +11,23 @@ echo "🌸 Applying KawaiiSec OS branding..."
 if [ -d "/tmp/build-assets" ]; then
     echo "📁 Copying assets to chroot environment..."
     
-    # Copy wallpapers
+    # Copy wallpapers with validation
     if [ -d "/tmp/build-assets/kawaiisec-docs/res/Wallpapers" ]; then
+        echo "🎨 Copying wallpapers..."
         mkdir -p /usr/share/kawaiisec/res/Wallpapers
         cp -r /tmp/build-assets/kawaiisec-docs/res/Wallpapers/* /usr/share/kawaiisec/res/Wallpapers/ || true
         chmod -R 644 /usr/share/kawaiisec/res/Wallpapers/*
+        
+        # Validate wallpaper files exist
+        for wallpaper in kawaii_cafe.png dreamy_clouds.png classic_pastel_workspace.png retro_terminal.png; do
+            if [ ! -f "/usr/share/kawaiisec/res/Wallpapers/$wallpaper" ]; then
+                echo "⚠️  Warning: Wallpaper $wallpaper not found"
+            else
+                echo "✅ Wallpaper $wallpaper copied successfully"
+            fi
+        done
+    else
+        echo "⚠️  Warning: Wallpapers directory not found"
     fi
     
     # Copy logos and graphics
@@ -45,6 +57,16 @@ echo "🎨 Setting up branding directories..."
 mkdir -p /usr/share/backgrounds/kawaiisec
 mkdir -p /usr/share/icons/kawaiisec
 mkdir -p /usr/share/pixmaps/kawaiisec
+
+# Consolidate asset paths - ensure consistent locations
+echo "🔗 Consolidating asset paths..."
+if [ -d /usr/share/kawaiisec/res/Wallpapers ]; then
+    cp -r /usr/share/kawaiisec/res/Wallpapers/* /usr/share/backgrounds/kawaiisec/ 2>/dev/null || true
+fi
+
+if [ -d /usr/share/kawaiisec/assets/graphics/logos ]; then
+    cp -r /usr/share/kawaiisec/assets/graphics/logos/* /usr/share/icons/kawaiisec/ 2>/dev/null || true
+fi
 
 # Create default wallpaper if none exists
 if [ ! -f /usr/share/backgrounds/kawaiisec/default.png ]; then
@@ -119,11 +141,108 @@ cat > /etc/motd << 'EOF'
 
 EOF
 
+# CRITICAL: Override os-release to show KawaiiSec OS instead of Debian
+echo "📝 Overriding system identification files..."
+cat > /etc/os-release << 'EOF'
+NAME="KawaiiSec OS"
+VERSION="2025.07.25"
+ID=kawaiisec
+ID_LIKE=debian
+PRETTY_NAME="KawaiiSec OS 2025.07.25"
+VERSION_ID="2025.07.25"
+HOME_URL="https://kawaiisec.org"
+SUPPORT_URL="https://github.com/dhruvabisht/KawaiiSec-OS"
+BUG_REPORT_URL="https://github.com/dhruvabisht/KawaiiSec-OS/issues"
+VERSION_CODENAME=kawaii
+UBUNTU_CODENAME=kawaii
+EOF
+
+# Override lsb-release as well
+cat > /etc/lsb-release << 'EOF'
+DISTRIB_ID=KawaiiSec
+DISTRIB_RELEASE=2025.07.25
+DISTRIB_CODENAME=kawaii
+DISTRIB_DESCRIPTION="KawaiiSec OS 2025.07.25"
+EOF
+
+# Override issue.net for SSH connections
+cat > /etc/issue.net << 'EOF'
+🌸 KawaiiSec OS 2025.07.25
+
+Welcome to KawaiiSec OS - Kawaii Cybersecurity Distribution
+For help and documentation, visit: https://kawaiisec.org
+
+Unauthorized access is prohibited.
+EOF
+
 # Set correct permissions
-chmod 644 /etc/issue /etc/issue.net /etc/motd
+chmod 644 /etc/issue /etc/issue.net /etc/motd /etc/os-release /etc/lsb-release
 
 # Enable firstboot service
 echo "🚀 Enabling first boot setup service..."
 systemctl enable kawaiisec-firstboot.service || true
+
+# Override browser branding
+echo "🌐 Setting up browser branding overrides..."
+
+# Firefox branding override
+if [ -d /usr/lib/firefox-esr ]; then
+    echo "🦊 Configuring Firefox branding..."
+    mkdir -p /usr/lib/firefox-esr/browser/chrome/icons/default/
+    if [ -f /usr/share/icons/kawaiisec/browser.png ]; then
+        cp /usr/share/icons/kawaiisec/browser.png /usr/lib/firefox-esr/browser/chrome/icons/default/default128.png || true
+        cp /usr/share/icons/kawaiisec/browser.png /usr/lib/firefox-esr/browser/chrome/icons/default/default48.png || true
+    fi
+fi
+
+# Chromium branding override
+if [ -d /usr/share/chromium ]; then
+    echo "🔍 Configuring Chromium branding..."
+    if [ -f /usr/share/icons/kawaiisec/browser.png ]; then
+        cp /usr/share/icons/kawaiisec/browser.png /usr/share/chromium/product_logo_48.png || true
+        cp /usr/share/icons/kawaiisec/browser.png /usr/share/chromium/product_logo_128.png || true
+    fi
+fi
+
+# Apply desktop environment setup during build for live mode
+echo "🖥️  Setting up desktop environment for live mode..."
+if [ -f /usr/local/bin/kawaiisec-desktop-setup.sh ]; then
+    echo "Running desktop setup script..."
+    /usr/local/bin/kawaiisec-desktop-setup.sh || echo "Desktop setup encountered issues, continuing..."
+else
+    echo "Desktop setup script not found, skipping..."
+fi
+
+# Override startup messages and system identification
+echo "🚀 Setting up startup branding overrides..."
+
+# Override hostname in boot process
+echo "kawaiisec" > /etc/hostname
+
+# Override systemd branding
+mkdir -p /etc/systemd/system.conf.d
+cat > /etc/systemd/system.conf.d/10-kawaiisec-branding.conf << 'EOF'
+[Manager]
+DefaultEnvironment="SYSTEMD_PRETTY_NAME=KawaiiSec OS"
+DefaultEnvironment="DISTRIB_ID=KawaiiSec"
+DefaultEnvironment="DISTRIB_RELEASE=2025.07.25"
+EOF
+
+# Override login branding
+cat > /etc/systemd/system/getty@tty1.service.d/10-kawaiisec-branding.conf << 'EOF'
+[Service]
+ExecStartPre=/bin/sh -c 'echo "🌸 Welcome to KawaiiSec OS 🌸" > /etc/issue'
+EOF
+
+# Ensure branding persists across reboots
+cat > /etc/profile.d/kawaiisec-branding.sh << 'EOF'
+#!/bin/bash
+# KawaiiSec OS Branding Profile
+export PS1="🌸 \u@kawaiisec:\w\$ "
+export SYSTEM_NAME="KawaiiSec OS"
+export DISTRIB_ID="KawaiiSec"
+EOF
+
+chmod +x /etc/profile.d/kawaiisec-branding.sh
 
 echo "✅ KawaiiSec OS branding applied successfully!" 

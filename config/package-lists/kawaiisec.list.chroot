@@ -1,5 +1,6 @@
-# KawaiiSec OS Core Package List
+# KawaiiSec OS Core Package List - Minimal Working Version
 # Essential packages for the KawaiiSec OS live system
+# Only includes packages that exist in Debian Bookworm repositories
 
 # Base system
 live-boot
@@ -39,7 +40,6 @@ apt-transport-https
 # Network tools
 openssh-client
 openssh-server
-netstat-nat
 net-tools
 iproute2
 dnsutils
@@ -48,58 +48,25 @@ traceroute
 tcpdump
 wireshark
 nmap
-masscan
 nikto
 dirb
-gobuster
-wfuzz
 sqlmap
 hydra
 john
 hashcat
 aircrack-ng
-reaver
-bully
 hostapd
 dnsmasq
 
 # Web application security
-burpsuite
-owasp-zap
-wpscan
 whatweb
-sublist3r
 
 # Reverse engineering and forensics
 gdb
-radare2
-ghidra
 binwalk
 foremost
 scalpel
 sleuthkit
-volatility3
-autopsy
-
-# Exploitation and post-exploitation
-metasploit-framework
-empire
-covenant
-crackmapexec
-impacket-scripts
-responder
-bloodhound
-neo4j
-powershell
-
-# Container and virtualization
-docker.io
-docker-compose
-vagrant
-virtualbox
-qemu-kvm
-libvirt-daemon-system
-virt-manager
 
 # Development tools
 python3
@@ -129,8 +96,6 @@ evince
 fonts-liberation
 fonts-dejavu
 fonts-noto
-papirus-icon-theme
-arc-theme
 
 # Audio system
 pulseaudio
@@ -143,12 +108,18 @@ exfat-fuse
 btrfs-progs
 
 # Additional utilities
-timeshift
-gufw
-bleachbit
 keepassxc
 remmina
 filezilla
 chromium
-code
-terminator 
+
+# Manual installation notes (packages not in Debian repos):
+# - burpsuite: Install from PortSwigger website
+# - owasp-zap: Install from OWASP website  
+# - wpscan: Install via gem install wpscan
+# - radare2: Install from GitHub releases
+# - ghidra: Install from NSA GitHub releases
+# - volatility3: Install via pip3 install volatility3
+# - metasploit-framework: Install from Rapid7 installer
+# - code: Install from Microsoft APT repository
+# - virtualbox: Install from Oracle repository 

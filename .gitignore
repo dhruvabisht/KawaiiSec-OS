@@ -6,4 +6,13 @@ hardware_reports/*_snippet.md
 
 # User-generated hardware test files
 kawaiisec_hw_report.txt
-kawaiisec_hw_snippet.md 
+kawaiisec_hw_snippet.md
+
+# Build outputs and large files
+output/
+*.iso
+*.md5
+*.sha256
+
+# Build logs
+build-*.log 

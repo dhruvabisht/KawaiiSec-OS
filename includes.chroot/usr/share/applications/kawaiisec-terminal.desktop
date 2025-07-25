@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=KawaiiSec Terminal
+Comment=Access the command line
+Exec=xfce4-terminal
+Icon=/usr/share/icons/kawaiisec/terminal.png
+Terminal=false
+Categories=System;TerminalEmulator;
+Keywords=terminal;shell;command;commandline;cmd;
+StartupNotify=true 

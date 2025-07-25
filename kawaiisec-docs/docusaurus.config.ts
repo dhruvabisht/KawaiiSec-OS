@@ -62,6 +62,15 @@ const config: Config = {
       },
       items: [
         { to: '/docs', label: 'Docs', position: 'left' },
+        { to: '/docs/setup', label: 'Download', position: 'left' },
+        { to: '/docs/tools', label: 'Tools', position: 'left' },
+        { to: '/docs/roadmap', label: 'Roadmap', position: 'left' },
+        {
+          href: 'https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso',
+          label: 'Download ISO',
+          position: 'right',
+          className: 'download-button',
+        },
         {
           href: 'https://github.com/dhruvabisht/KawaiiSec-OS',
           label: 'GitHub',
@@ -73,35 +82,63 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Docs',
+          title: 'Documentation',
           items: [
             { label: 'Getting Started', to: '/docs' },
-            { label: 'Tools', to: '/docs/tools' },
-            { label: 'Setup', to: '/docs/setup' },
+            { label: 'Installation Guide', to: '/docs/setup' },
+            { label: 'Tools & Scripts', to: '/docs/tools' },
+            { label: 'Roadmap', to: '/docs/roadmap' },
+          ],
+        },
+        {
+          title: 'Download',
+          items: [
+            {
+              label: 'Latest ISO (v2025.07.25)',
+              href: 'https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso',
+            },
+            {
+              label: 'Verify Checksums',
+              href: 'https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.sha256',
+            },
+            {
+              label: 'GitHub Releases',
+              href: 'https://github.com/dhruvabisht/KawaiiSec-OS/releases',
+            },
           ],
         },
         {
           title: 'Community',
           items: [
             {
-              label: 'GitHub',
+              label: 'Discord Server',
+              href: 'https://discord.gg/kawaiisec',
+            },
+            {
+              label: 'GitHub Repository',
               href: 'https://github.com/dhruvabisht/KawaiiSec-OS',
             },
             {
-              label: 'Join Discord',
-              href: 'https://discord.gg/YOUR_INVITE_CODE',
+              label: 'Telegram Channel',
+              href: 'https://t.me/KawaiiSecOS',
+            },
+            {
+              label: 'Report Issues',
+              href: 'https://github.com/dhruvabisht/KawaiiSec-OS/issues',
             },
           ],
         },
         {
-          title: 'More',
+          title: 'Support',
           items: [
-            { label: 'Roadmap', to: '/docs/roadmap' },
-            { label: 'GitHub', href: 'https://github.com/dhruvabisht/KawaiiSec-OS' },
+            { label: 'Documentation', to: '/docs' },
+            { label: 'Installation Help', to: '/docs/setup' },
+            { label: 'Tool Documentation', to: '/docs/tools' },
+            { label: 'Email Support', href: 'mailto:support@kawaiisec.os' },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} KawaiiSec OS. Built with love, shell scripts, and Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} KawaiiSec OS. Built with love, shell scripts, and Docusaurus. 🌸`,
     },
     prism: {
       theme: prismThemes.github,

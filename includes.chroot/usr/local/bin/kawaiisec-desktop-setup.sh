@@ -121,11 +121,14 @@ set_xfce_default() {
 configure_lightdm() {
     info "Configuring lightdm with KawaiiSec branding..."
     
+    # Ensure lightdm directory exists
+    mkdir -p /etc/lightdm
+    
     cat > /etc/lightdm/lightdm-gtk-greeter.conf << 'EOF'
 [greeter]
 background=/usr/share/backgrounds/kawaiisec/kawaii_cafe.png
-theme-name=Arc-Pink
-icon-theme-name=Papirus-Pink
+theme-name=Adwaita-dark
+icon-theme-name=kawaiisec
 font-name=Noto Sans 11
 xft-antialias=true
 xft-dpi=96
@@ -138,6 +141,9 @@ user-background=true
 hide-user-image=false
 screensaver-timeout=300
 EOF
+    
+    # Force lightdm to use our configuration
+    chmod 644 /etc/lightdm/lightdm-gtk-greeter.conf
     
     success "Lightdm configured with KawaiiSec branding"
 }
@@ -174,6 +180,11 @@ install_branding_assets() {
     # Copy logos and icons if they exist  
     if [ -d "/usr/share/kawaiisec/assets/graphics/logos" ]; then
         cp /usr/share/kawaiisec/assets/graphics/logos/* "$ICONS_DIR/" 2>/dev/null || true
+    fi
+    
+    # Copy icons from the new location
+    if [ -d "/usr/share/icons/kawaiisec" ]; then
+        cp /usr/share/icons/kawaiisec/* "$ICONS_DIR/" 2>/dev/null || true
     fi
     
     # Set appropriate permissions
@@ -241,6 +252,11 @@ configure_xfce_defaults() {
     mkdir -p "$SKEL_DIR/.config/xfce4/xfconf/xfce-perchannel-xml"
     mkdir -p "$SKEL_DIR/.config/xfce4/desktop"
     mkdir -p "$SKEL_DIR/.config/xfce4/panel"
+    
+    # Also configure for root user (important for live mode)
+    mkdir -p "/root/.config/xfce4/xfconf/xfce-perchannel-xml"
+    mkdir -p "/root/.config/xfce4/desktop"
+    mkdir -p "/root/.config/xfce4/panel"
     
     # Configure wallpaper
     cat > "$SKEL_DIR/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml" << 'EOF'
@@ -315,7 +331,7 @@ Type=Application
 Name=KawaiiSec Terminal
 Comment=KawaiiSec OS Terminal
 Exec=xfce4-terminal
-Icon=terminal
+Icon=/usr/share/icons/kawaiisec/terminal.png
 Terminal=false
 Categories=System;TerminalEmulator;
 StartupNotify=true
@@ -329,7 +345,7 @@ Type=Application
 Name=KawaiiSec Files
 Comment=Browse and manage files
 Exec=thunar
-Icon=folder
+Icon=/usr/share/icons/kawaiisec/file_manager.png
 Terminal=false
 Categories=System;FileManager;
 StartupNotify=true
@@ -344,7 +360,7 @@ Type=Application
 Name=KawaiiSec Browser
 Comment=Web browser for security testing
 Exec=firefox-esr
-Icon=firefox-esr
+Icon=/usr/share/icons/kawaiisec/browser.png
 Terminal=false
 Categories=Network;WebBrowser;
 StartupNotify=true
