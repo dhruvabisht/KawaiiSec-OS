@@ -23,6 +23,7 @@ const config: Config = {
 
   onBrokenLinks: 'ignore',
   onBrokenMarkdownLinks: 'warn',
+  onBrokenAnchors: 'ignore',
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -66,7 +67,7 @@ const config: Config = {
         { to: '/docs/tools', label: 'Tools', position: 'left' },
         { to: '/docs/roadmap', label: 'Roadmap', position: 'left' },
         {
-          href: 'https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso',
+          href: 'https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest',
           label: 'Download ISO',
           position: 'right',
           className: 'download-button',
@@ -94,16 +95,16 @@ const config: Config = {
           title: 'Download',
           items: [
             {
-              label: 'Latest ISO (v2025.07.25)',
-              href: 'https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso',
+              label: 'Latest Release (v2025.07.25)',
+              href: 'https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest',
             },
             {
-              label: 'Verify Checksums',
-              href: 'https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.sha256',
+              label: 'Split ISO Parts',
+              href: 'https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest',
             },
             {
-              label: 'GitHub Releases',
-              href: 'https://github.com/dhruvabisht/KawaiiSec-OS/releases',
+              label: 'Assembly Instructions',
+              href: '/docs/setup#download-and-assemble-iso',
             },
           ],
         },
