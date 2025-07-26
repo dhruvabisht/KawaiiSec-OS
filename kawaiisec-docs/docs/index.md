@@ -12,8 +12,8 @@ A security-focused Linux distro with pastel themes, anime flair, and deadly pent
 
 **Latest Release: v2025.07.25**
 
-- **📥 [Download ISO](https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso)** (3.3GB)
-- **🔍 [Verify Checksums](https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.sha256)**
+- **📥 [Download Split ISO Parts](https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest)** (4 parts, ~3.3GB total)
+- **🔧 [Assembly Instructions](./setup#download-and-assemble-iso)**
 - **📖 [Installation Guide](./setup)**
 
 ## ✨ Features

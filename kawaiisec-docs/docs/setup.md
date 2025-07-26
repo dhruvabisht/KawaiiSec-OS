@@ -19,37 +19,45 @@ Before installing KawaiiSec OS, make sure you have:
 
 ### Latest Release: v2025.07.25
 
-**Direct Download Links:**
-- **ISO File**: [kawaiisec-os-2025.07.25-amd64.iso](https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso) (3.3GB)
+**Split ISO Files (Due to GitHub's 2GB limit):**
+- **ISO Part 1**: [kawaiisec-os-2025.07.25-amd64.iso.partaa](https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.partaa) (1.0GB)
+- **ISO Part 2**: [kawaiisec-os-2025.07.25-amd64.iso.partab](https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.partab) (1.0GB)
+- **ISO Part 3**: [kawaiisec-os-2025.07.25-amd64.iso.partac](https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.partac) (1.0GB)
+- **ISO Part 4**: [kawaiisec-os-2025.07.25-amd64.iso.partad](https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.partad) (304MB)
+- **Assembly Script**: [assemble-iso.sh](https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/assemble-iso.sh)
 - **SHA256 Checksum**: [kawaiisec-os-2025.07.25-amd64.iso.sha256](https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.sha256)
 - **MD5 Checksum**: [kawaiisec-os-2025.07.25-amd64.iso.md5](https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.md5)
 
-### 🔍 Verify Your Download
+### 🔍 Download and Assemble ISO
 
 **On Linux/macOS:**
 ```bash
-# Download the ISO
-wget https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso
+# Download all ISO parts
+wget https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.partaa
+wget https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.partab
+wget https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.partac
+wget https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.partad
 
-# Download checksums
+# Download assembly script and checksums
+wget https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/assemble-iso.sh
 wget https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.sha256
 wget https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.md5
 
-# Verify SHA256
-sha256sum -c kawaiisec-os-2025.07.25-amd64.iso.sha256
-
-# Verify MD5
-md5sum -c kawaiisec-os-2025.07.25-amd64.iso.md5
+# Make script executable and run it
+chmod +x assemble-iso.sh
+./assemble-iso.sh
 ```
 
 **On Windows:**
 ```powershell
-# Download using PowerShell
-Invoke-WebRequest -Uri "https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso" -OutFile "kawaiisec-os-2025.07.25-amd64.iso"
+# Download all ISO parts
+Invoke-WebRequest -Uri "https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.partaa" -OutFile "kawaiisec-os-2025.07.25-amd64.iso.partaa"
+Invoke-WebRequest -Uri "https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.partab" -OutFile "kawaiisec-os-2025.07.25-amd64.iso.partab"
+Invoke-WebRequest -Uri "https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.partac" -OutFile "kawaiisec-os-2025.07.25-amd64.iso.partac"
+Invoke-WebRequest -Uri "https://github.com/dhruvabisht/KawaiiSec-OS/releases/latest/download/kawaiisec-os-2025.07.25-amd64.iso.partad" -OutFile "kawaiisec-os-2025.07.25-amd64.iso.partad"
 
-# Verify using PowerShell
-Get-FileHash -Algorithm SHA256 kawaiisec-os-2025.07.25-amd64.iso
-Get-FileHash -Algorithm MD5 kawaiisec-os-2025.07.25-amd64.iso
+# Combine parts manually (PowerShell)
+Get-Content kawaiisec-os-2025.07.25-amd64.iso.part* | Set-Content -Encoding Byte kawaiisec-os-2025.07.25-amd64.iso
 ```
 
 ## 💾 Installation Methods
