@@ -6,7 +6,6 @@
 set -euo pipefail
 
 # Configuration
-SCRIPT_NAME="KawaiiSec Firewall Setup"
 CONFIG_FILE="/etc/kawaiisec/lab_ports.conf"
 LOG_FILE="/var/log/kawaiisec-firewall.log"
 BACKUP_DIR="/etc/kawaiisec/ufw-backup"
@@ -91,7 +90,8 @@ install_ufw() {
 # Backup existing UFW configuration
 backup_ufw_config() {
     if [ -d /etc/ufw ]; then
-        local backup_file="$BACKUP_DIR/ufw-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
+        local backup_file
+        backup_file="$BACKUP_DIR/ufw-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
         info "Backing up existing UFW configuration to $backup_file"
         tar -czf "$backup_file" -C /etc ufw >/dev/null 2>&1
         success "UFW configuration backed up"
