@@ -1,0 +1,10 @@
+.git
+.github
+output
+build
+*.iso
+*.log
+*.deb
+node_modules
+kawaiisec-docs/build
+kawaiisec-docs/node_modules

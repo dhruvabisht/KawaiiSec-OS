@@ -119,7 +119,7 @@ run_build() {
                 copied_files=$(ls /home/builder/output/*.iso 2>/dev/null | wc -l)
                 if [ "$copied_files" -gt 0 ]; then
                     echo "✅ ISO and build artifacts exported to output directory!"
-                    echo "🎯 Files available on your Mac in: '"$OUTPUT_DIR"'"
+                    echo "🎯 Files available on your Mac in: $OUTPUT_DIR"
                     ls -la /home/builder/output/
                 else
                     echo "⚠️  Warning: No ISO files found in output directory"

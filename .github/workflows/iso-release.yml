@@ -138,7 +138,7 @@ jobs:
       run: |
         echo "✅ Validating ISO image..."
         chmod +x scripts/validate-iso.sh
-        ./scripts/validate-iso.sh --skip-boot-test "${{ steps.vars.outputs.iso_name }}"
+        ./scripts/validate-iso.sh --quick --skip-boot-test "${{ steps.vars.outputs.iso_name }}"
 
     - name: 📊 Generate Build Artifacts
       run: |

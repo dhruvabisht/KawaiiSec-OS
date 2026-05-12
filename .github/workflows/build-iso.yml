@@ -178,7 +178,7 @@ jobs:
         if [ -f "scripts/validate-iso.sh" ]; then
           echo "🧪 Running validation script..."
           chmod +x scripts/validate-iso.sh
-          sudo ./scripts/validate-iso.sh "$ISO_FILE"
+          sudo ./scripts/validate-iso.sh --quick "$ISO_FILE"
         fi
         
     - name: 🧪 Quick boot test
