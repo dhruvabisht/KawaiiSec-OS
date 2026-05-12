@@ -1,0 +1,107 @@
+#!/bin/bash
+
+# KawaiiSec OS Plymouth Theme Installation Hook
+# Ensures Plymouth splash screen is properly installed and configured
+
+set -e
+
+echo "🚀 Installing KawaiiSec Plymouth theme..."
+
+# Install Plymouth if not present
+if ! command -v plymouth &> /dev/null; then
+    echo "📦 Installing Plymouth..."
+    apt update && apt install -y plymouth plymouth-themes imagemagick || true
+fi
+
+# Create Plymouth theme directory
+mkdir -p /usr/share/plymouth/themes/kawaiisec
+
+# Step 1: Copy theme files from assets if they exist
+# In live-build, assets should be in includes.chroot/usr/share/kawaiisec/assets/themes/boot/kawaiisec
+PLYMOUTH_SOURCE="/usr/share/kawaiisec/assets/themes/boot/kawaiisec"
+
+if [ -d "$PLYMOUTH_SOURCE" ]; then
+    echo "📂 Found Plymouth theme in: $PLYMOUTH_SOURCE"
+    cp -r "$PLYMOUTH_SOURCE"/* /usr/share/plymouth/themes/kawaiisec/ 2>/dev/null || true
+fi
+
+# Step 2: Ensure basic theme files exist
+if [ ! -f /usr/share/plymouth/themes/kawaiisec/kawaiisec.plymouth ]; then
+    echo "📝 Creating Plymouth theme configuration..."
+    cat > /usr/share/plymouth/themes/kawaiisec/kawaiisec.plymouth << 'EOF'
+[Plymouth Theme]
+Name=KawaiiSec OS
+Description=Kawaii pastel boot splash for KawaiiSec OS with cute progress bar
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/kawaiisec
+ScriptFile=/usr/share/plymouth/themes/kawaiisec/kawaiisec.script
+EOF
+fi
+
+if [ ! -f /usr/share/plymouth/themes/kawaiisec/kawaiisec.script ]; then
+    echo "📝 Creating basic Plymouth script..."
+    cat > /usr/share/plymouth/themes/kawaiisec/kawaiisec.script << 'EOF'
+// KawaiiSec OS Plymouth Script
+progress = 0.0;
+time = 0.0;
+
+function refresh_callback() {
+    time += 0.05;
+    progress = Plymouth.GetMode() == "boot" ? Plymouth.GetProgress() : time * 0.1;
+    if (progress > 1.0) progress = 1.0;
+    
+    Window.Clear();
+    screen_width = Window.GetWidth();
+    screen_height = Window.GetHeight();
+    
+    // Background
+    Window.SetSourceRGBA(1.0, 0.7, 0.8, 1.0);
+    Window.FillRectangle(0, 0, screen_width, screen_height);
+    
+    // Progress bar
+    bar_width = screen_width * 0.6;
+    bar_height = 10;
+    bar_x = (screen_width - bar_width) / 2;
+    bar_y = screen_height * 0.8;
+    
+    Window.SetSourceRGBA(1.0, 1.0, 1.0, 0.5);
+    Window.FillRectangle(bar_x, bar_y, bar_width, bar_height);
+    
+    Window.SetSourceRGBA(1.0, 0.4, 0.6, 1.0);
+    Window.FillRectangle(bar_x, bar_y, bar_width * progress, bar_height);
+    
+    Window.SetSourceRGBA(0.2, 0.1, 0.3, 1.0);
+    Window.WriteText("🌸 KawaiiSec OS Loading...", bar_x, bar_y - 20);
+}
+
+Plymouth.SetRefreshFunction(refresh_callback);
+EOF
+fi
+
+# Step 3: Copy assets (background and logo)
+if [ -f "/usr/share/backgrounds/kawaiisec/kawaii_cafe.png" ]; then
+    cp "/usr/share/backgrounds/kawaiisec/kawaii_cafe.png" /usr/share/plymouth/themes/kawaiisec/background.png
+fi
+
+if [ -f "/usr/share/icons/kawaiisec/Kawaii.png" ]; then
+    cp "/usr/share/icons/kawaiisec/Kawaii.png" /usr/share/plymouth/themes/kawaiisec/logo.png
+fi
+
+# Step 4: Set as default theme
+echo "🎭 Setting KawaiiSec as default Plymouth theme..."
+if [ -f /usr/share/plymouth/themes/kawaiisec/kawaiisec.plymouth ]; then
+    plymouth-set-default-theme kawaiisec || true
+    # update-initramfs will be handled by the build process or firstboot
+fi
+
+# Step 5: Update GRUB for splash
+if [ -f /etc/default/grub ]; then
+    if ! grep -q "quiet splash" /etc/default/grub; then
+        sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& quiet splash/' /etc/default/grub
+    fi
+fi
+
+echo "✅ KawaiiSec Plymouth theme installation completed!"
+

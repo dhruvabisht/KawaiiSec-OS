@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Exec=/usr/local/bin/kawaiisec-wallpaper-fix.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=KawaiiSec Wallpaper Fix
+Comment=Ensures kawaii wallpaper is applied to all monitors

@@ -772,6 +772,12 @@ examples: ## 💡 Show usage examples
 	@echo "  make labs-clean             # Clean lab environments"
 	@echo "  make distclean              # Deep clean everything"
 
+.PHONY: dist
+dist: ## 🚀 Prepare a distribution-ready release
+	@echo -e "$(PURPLE)🚀 Preparing KawaiiSec OS Distribution...$(NC)"
+	@if [ ! -x ./scripts/prepare-distribution.sh ]; then chmod +x ./scripts/prepare-distribution.sh; fi
+	./scripts/prepare-distribution.sh
+
 .PHONY: iso
 iso: ## 🌸 Build KawaiiSec OS ISO image
 	@echo -e "$(PURPLE)🌸 Building KawaiiSec OS ISO...$(NC)"

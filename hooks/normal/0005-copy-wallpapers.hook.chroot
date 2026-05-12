@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# SIMPLE DIRECT WALLPAPER COPY HOOK
+# This hook FORCES wallpapers to be copied directly to standard locations
+
+set -e
+
+echo "🎨 DIRECTLY copying KawaiiSec wallpapers..."
+
+# Create standard wallpaper directories
+mkdir -p /usr/share/backgrounds
+mkdir -p /usr/share/pixmaps
+
+# DIRECT copy from includes.chroot (these files definitely exist)
+if [ -d /usr/share/backgrounds/kawaiisec ]; then
+    echo "📂 Found wallpapers in /usr/share/backgrounds/kawaiisec"
+    cp /usr/share/backgrounds/kawaiisec/*.png /usr/share/backgrounds/ || echo "Failed to copy from kawaiisec dir"
+    cp /usr/share/backgrounds/kawaiisec/*.png /usr/share/pixmaps/ || echo "Failed to copy to pixmaps"
+    
+    # List what we copied
+    echo "✅ Copied wallpapers:"
+    ls -la /usr/share/backgrounds/*.png || echo "No PNG files in backgrounds"
+    ls -la /usr/share/backgrounds/kawaiisec/ || echo "No kawaiisec dir"
+else
+    echo "❌ /usr/share/backgrounds/kawaiisec directory not found!"
+    echo "📋 Available directories:"
+    ls -la /usr/share/backgrounds/ || echo "No backgrounds directory"
+fi
+
+# Also try to copy from any build assets
+if [ -d /tmp/build-assets ]; then
+    echo "📂 Checking build assets..."
+    find /tmp/build-assets -name "*.png" -path "*/Wallpapers/*" -exec cp {} /usr/share/backgrounds/ \; || true
+    find /tmp/build-assets -name "*.png" -path "*/wallpapers/*" -exec cp {} /usr/share/backgrounds/ \; || true
+fi
+
+# Verify what we have
+echo "🔍 Final wallpaper check:"
+ls -la /usr/share/backgrounds/ || echo "No backgrounds directory created"
+
+echo "✅ Wallpaper copy hook completed"

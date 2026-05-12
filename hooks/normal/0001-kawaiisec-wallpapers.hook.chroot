@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# KawaiiSec OS Wallpaper Deployment Hook
+# Ensures wallpapers are available in all standard system locations
+
+set -e
+
+echo "🎨 Deploying KawaiiSec wallpapers..."
+
+WALLPAPER_SOURCE="/usr/share/backgrounds/kawaiisec"
+
+if [ -d "$WALLPAPER_SOURCE" ]; then
+    echo "✅ Found wallpapers in: $WALLPAPER_SOURCE"
+    
+    # Create standard directories
+    mkdir -p /usr/share/backgrounds
+    mkdir -p /usr/share/pixmaps  
+    mkdir -p /usr/share/xfce4/backdrops
+    
+    # Copy to standard locations
+    cp "$WALLPAPER_SOURCE"/*.png /usr/share/backgrounds/ 2>/dev/null || true
+    cp "$WALLPAPER_SOURCE"/*.png /usr/share/pixmaps/ 2>/dev/null || true
+    cp "$WALLPAPER_SOURCE"/*.png /usr/share/xfce4/backdrops/ 2>/dev/null || true
+    
+    # Set permissions
+    chmod 644 /usr/share/backgrounds/*.png 2>/dev/null || true
+    
+    echo "✅ Wallpapers deployed to system locations"
+else
+    echo "❌ Error: Wallpaper source $WALLPAPER_SOURCE not found!"
+    exit 1
+fi
+
+echo "🎨 KawaiiSec wallpaper deployment completed!"
+

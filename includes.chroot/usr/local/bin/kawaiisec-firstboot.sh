@@ -280,6 +280,48 @@ main() {
         exit 0
     fi
     
+    # FORCE ensure all branding assets are properly deployed on first boot
+    info "FORCE ensuring branding assets are properly deployed..."
+    
+    # Ensure wallpapers are in all expected locations
+    wallpaper_sources=(
+        "/usr/share/kawaiisec/res/Wallpapers"
+        "/usr/share/backgrounds/kawaiisec"
+    )
+    
+    for source in "${wallpaper_sources[@]}"; do
+        if [ -d "$source" ]; then
+            info "Copying wallpapers from $source to all standard locations"
+            cp -r "$source"/* /usr/share/backgrounds/ 2>/dev/null || true
+            cp -r "$source"/* /usr/share/pixmaps/ 2>/dev/null || true
+            mkdir -p /usr/share/gnome-background-properties
+            for wallpaper in "$source"/*.png; do
+                if [ -f "$wallpaper" ]; then
+                    basename_wp=$(basename "$wallpaper")
+                    cp "$wallpaper" /usr/share/backgrounds/ 2>/dev/null || true
+                fi
+            done
+        fi
+    done
+    
+    # Ensure icon theme is properly configured
+    info "FORCE configuring icon theme..."
+    if [ -d "/usr/share/icons/kawaiisec" ]; then
+        # Update icon cache
+        gtk-update-icon-cache -f -t /usr/share/icons/kawaiisec 2>/dev/null || true
+        
+        # Ensure proper permissions
+        chmod -R 644 /usr/share/icons/kawaiisec/* 2>/dev/null || true
+        find /usr/share/icons/kawaiisec -type d -exec chmod 755 {} \; 2>/dev/null || true
+    fi
+    
+    # FORCE configure Plymouth theme
+    info "FORCE configuring Plymouth theme..."
+    if [ -f /usr/share/plymouth/themes/kawaiisec/kawaiisec.plymouth ]; then
+        plymouth-set-default-theme kawaiisec || warning "Failed to set Plymouth theme"
+        update-initramfs -u || warning "Failed to update initramfs"
+    fi
+    
     # Check if running in live environment
     if grep -q "boot=live" /proc/cmdline; then
         info "Running in live environment, skipping first boot setup"

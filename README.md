@@ -64,6 +64,20 @@ make validate-iso
 make test-iso-qemu
 ```
 
+### 📦 Preparing a Release
+
+To prepare a distribution-ready release (ISO, checksums, and metadata), run:
+
+```bash
+make dist
+```
+
+This will:
+1. Build the ISO (if not already built) using Docker.
+2. Package the ISO with SHA256 and MD5 checksums.
+3. Generate a `RELEASE_INFO.md` with version information.
+4. Organize everything in the `dist/` directory.
+
 **Complete Documentation:** See [`docs/release.md`](docs/release.md) for comprehensive build instructions, customization options, and troubleshooting.
 
 ## 🎯 Recent Updates

@@ -1,52 +1,53 @@
 #!/bin/bash
 
-# KawaiiSec OS Syslinux Bootloader Branding Hook
+# KawaiiSec OS Syslinux Bootloader Branding Hook  
 # Ensures syslinux boot menu shows KawaiiSec branding
 
 set -e
 
 echo "🚀 Applying KawaiiSec OS syslinux branding..."
 
-# Ensure syslinux configuration directory exists
-mkdir -p /usr/share/syslinux
+# Source directory inside chroot (populated via includes.chroot)
+SYSLINUX_ASSETS="/usr/share/kawaiisec/bootloaders/syslinux"
 
-# Copy KawaiiSec syslinux configuration
-if [ -f /tmp/build-assets/config/bootloaders/syslinux/syslinux.cfg ]; then
-    echo "📝 Installing KawaiiSec syslinux configuration..."
-    cp /tmp/build-assets/config/bootloaders/syslinux/syslinux.cfg /usr/share/syslinux/isolinux.cfg || true
-    chmod 644 /usr/share/syslinux/isolinux.cfg
+if [ -d "$SYSLINUX_ASSETS" ]; then
+    echo "📂 Found syslinux assets in $SYSLINUX_ASSETS"
     
-    # Validate the configuration was copied
-    if [ -f /usr/share/syslinux/isolinux.cfg ]; then
-        echo "✅ Syslinux configuration installed successfully"
-    else
-        echo "⚠️  Warning: Failed to install syslinux configuration"
+    # Create standard syslinux directories
+    mkdir -p /usr/share/syslinux
+    mkdir -p /usr/lib/syslinux/modules/bios
+    
+    # Copy configuration
+    if [ -f "$SYSLINUX_ASSETS/syslinux.cfg" ]; then
+        cp "$SYSLINUX_ASSETS/syslinux.cfg" /usr/share/syslinux/isolinux.cfg || true
+        cp "$SYSLINUX_ASSETS/syslinux.cfg" /usr/share/syslinux/syslinux.cfg || true
     fi
+    
+    # Copy splash image
+    if [ -f "$SYSLINUX_ASSETS/splash.png" ]; then
+        cp "$SYSLINUX_ASSETS/splash.png" /usr/share/syslinux/splash.png || true
+        cp "$SYSLINUX_ASSETS/splash.png" /usr/lib/syslinux/splash.png || true
+    fi
+    
+    echo "✅ Syslinux assets installed"
 else
-    echo "⚠️  Warning: Syslinux configuration not found in build assets"
+    echo "⚠️ Warning: Syslinux assets not found in $SYSLINUX_ASSETS"
 fi
 
-# Copy splash image if it exists
-if [ -f /tmp/build-assets/config/bootloaders/syslinux/splash.png ]; then
-    echo "🎨 Installing KawaiiSec splash image..."
-    cp /tmp/build-assets/config/bootloaders/syslinux/splash.png /usr/share/syslinux/splash.png || true
-    chmod 644 /usr/share/syslinux/splash.png
-fi
+# Update existing configurations
+for config_file in /usr/share/syslinux/isolinux.cfg /usr/share/syslinux/syslinux.cfg /usr/lib/syslinux/isolinux.cfg; do
+    if [ -f "$config_file" ]; then
+        echo "⚙️ Updating syslinux configuration: $config_file"
+        
+        # Ensure the menu title shows KawaiiSec OS
+        sed -i 's/MENU TITLE .*/MENU TITLE KawaiiSec OS Live/' "$config_file" 2>/dev/null || true
+        
+        # Update kernel parameters to include KawaiiSec hostname and username
+        sed -i 's/hostname=[^ ]*/hostname=kawaiisec/g' "$config_file" 2>/dev/null || true
+        sed -i 's/username=[^ ]*/username=kawaiisec/g' "$config_file" 2>/dev/null || true
+        
+        echo "✅ Updated $config_file"
+    fi
+done
 
-# Update live-build syslinux configuration
-if [ -f /usr/share/syslinux/isolinux.cfg ]; then
-    echo "⚙️  Updating live-build syslinux configuration..."
-    
-    # Ensure the menu title shows KawaiiSec OS
-    sed -i 's/MENU TITLE .*/MENU TITLE KawaiiSec OS Live/' /usr/share/syslinux/isolinux.cfg || true
-    
-    # Update menu labels to show KawaiiSec branding
-    sed -i 's/MENU LABEL .*Live (amd64)/MENU LABEL ^KawaiiSec OS Live (amd64)/' /usr/share/syslinux/isolinux.cfg || true
-    sed -i 's/MENU LABEL .*Live (failsafe)/MENU LABEL KawaiiSec OS Live (^failsafe)/' /usr/share/syslinux/isolinux.cfg || true
-    
-    echo "✅ Syslinux configuration updated with KawaiiSec branding"
-else
-    echo "⚠️  Syslinux configuration file not found"
-fi
-
-echo "✅ KawaiiSec OS syslinux branding applied successfully!" 
+echo "✅ KawaiiSec OS syslinux branding applied!"

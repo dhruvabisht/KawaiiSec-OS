@@ -5,7 +5,7 @@ set -e
 
 THEME_NAME="kawaiisec"
 THEME_DIR="/usr/share/plymouth/themes/$THEME_NAME"
-ASSETS_DIR="/Applications/Dhruva/KawaiiSec-OS/assets/assets/themes/boot"
+ASSETS_DIR="/Applications/Dhruva/Projects/KawaiiSec-OS/assets/assets/themes/boot"
 
 echo "🌸 Installing KawaiiSec Plymouth Boot Splash Theme..."
 

@@ -1,0 +1,161 @@
+#!/bin/bash
+
+# KawaiiSec OS User and Desktop Branding Hook
+# Changes "Debian Live user" to "KawaiiSec User" and applies desktop branding
+
+set -e
+
+echo "👤 Applying KawaiiSec user branding..."
+
+# Override system identification to prevent "Debian" from showing anywhere
+echo "📝 Overriding all system identification..."
+
+# Force override /etc/debian_version to show KawaiiSec
+if [ -f /etc/debian_version ]; then
+    echo "kawaii/sid" > /etc/debian_version
+    echo "✅ Overridden /etc/debian_version"
+fi
+
+# Override /etc/issue and /etc/issue.net
+cat > /etc/issue << 'EOF'
+🌸 KawaiiSec OS \r \l
+
+Welcome to KawaiiSec OS - Kawaii Cybersecurity Distribution
+For help and documentation, visit: https://kawaiisec.org
+
+EOF
+
+cat > /etc/issue.net << 'EOF'
+🌸 KawaiiSec OS
+
+Welcome to KawaiiSec OS - Kawaii Cybersecurity Distribution
+For help and documentation, visit: https://kawaiisec.org
+
+Unauthorized access is prohibited.
+EOF
+
+# Override /etc/os-release completely
+cat > /etc/os-release << 'EOF'
+NAME="KawaiiSec OS"
+VERSION="2025.01.25"
+ID=kawaiisec
+ID_LIKE=debian
+PRETTY_NAME="KawaiiSec OS 2025.01.25 (Kawaii)"
+VERSION_ID="2025.01.25"
+HOME_URL="https://kawaiisec.org"
+SUPPORT_URL="https://github.com/dhruvabisht/KawaiiSec-OS"
+BUG_REPORT_URL="https://github.com/dhruvabisht/KawaiiSec-OS/issues"
+VERSION_CODENAME=kawaii
+UBUNTU_CODENAME=kawaii
+DISTRIB_ID=KawaiiSec
+DISTRIB_RELEASE=2025.01.25
+DISTRIB_CODENAME=kawaii
+DISTRIB_DESCRIPTION="KawaiiSec OS 2025.01.25 (Kawaii)"
+EOF
+
+# Override /etc/lsb-release
+cat > /etc/lsb-release << 'EOF'
+DISTRIB_ID=KawaiiSec
+DISTRIB_RELEASE=2025.01.25
+DISTRIB_CODENAME=kawaii
+DISTRIB_DESCRIPTION="KawaiiSec OS 2025.01.25 (Kawaii)"
+EOF
+
+# Set hostname to kawaiisec
+echo "kawaiisec" > /etc/hostname
+echo "✅ Set hostname to kawaiisec"
+
+# Update /etc/hosts
+cat > /etc/hosts << 'EOF'
+127.0.0.1	localhost
+127.0.1.1	kawaiisec
+
+# The following lines are desirable for IPv6 capable hosts
+::1     localhost ip6-localhost ip6-loopback
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+EOF
+
+# Configure live user branding
+echo "👤 Setting up live user configuration..."
+
+# Create user configuration directories
+mkdir -p /etc/skel/.config/gtk-3.0
+mkdir -p /etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml
+
+# Override any references to "Debian Live user"
+if [ -f /etc/passwd ]; then
+    sed -i 's/Debian Live user/KawaiiSec User/g' /etc/passwd || true
+    echo "✅ Updated user description in /etc/passwd"
+fi
+
+# Set up desktop session branding
+mkdir -p /usr/share/xsessions
+cat > /usr/share/xsessions/kawaiisec.desktop << 'EOF'
+[Desktop Entry]
+Name=KawaiiSec OS Desktop
+Comment=KawaiiSec OS Kawaii Desktop Environment
+Exec=startxfce4
+Icon=kawaiisec-logo
+Type=XSession
+DesktopNames=XFCE
+EOF
+
+# Configure lightdm to show KawaiiSec branding
+mkdir -p /etc/lightdm
+cat > /etc/lightdm/lightdm.conf << 'EOF'
+[Seat:*]
+greeter-session=lightdm-gtk-greeter
+session-wrapper=/etc/X11/Xsession
+display-setup-script=/usr/local/bin/kawaiisec-display-setup.sh
+EOF
+
+# Create display setup script
+cat > /usr/local/bin/kawaiisec-display-setup.sh << 'EOF'
+#!/bin/bash
+# KawaiiSec OS Display Setup
+export DISPLAY_NAME="KawaiiSec OS"
+export SESSION_NAME="KawaiiSec OS Desktop"
+EOF
+chmod +x /usr/local/bin/kawaiisec-display-setup.sh
+
+# Configure GTK theme for branding
+cat > /etc/skel/.config/gtk-3.0/settings.ini << 'EOF'
+[Settings]
+gtk-theme-name=Adwaita
+gtk-icon-theme-name=KawaiiSec
+gtk-font-name=Sans 10
+gtk-cursor-theme-name=Adwaita
+gtk-cursor-theme-size=0
+gtk-toolbar-style=GTK_TOOLBAR_BOTH
+gtk-toolbar-icon-size=GTK_ICON_SIZE_LARGE_TOOLBAR
+gtk-button-images=1
+gtk-menu-images=1
+gtk-enable-event-sounds=1
+gtk-enable-input-feedback-sounds=1
+gtk-xft-antialias=1
+gtk-xft-hinting=1
+gtk-xft-hintstyle=hintfull
+gtk-xft-rgba=rgb
+EOF
+
+# Create welcome message for desktop
+cat > /etc/skel/Desktop/Welcome.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Welcome to KawaiiSec OS
+Comment=Getting started with KawaiiSec OS
+Exec=xmessage -center -title "🌸 Welcome to KawaiiSec OS 🌸" "Welcome to KawaiiSec OS - Kawaii Cybersecurity Distribution!\n\nThis is your kawaii security testing environment.\n\n📚 Documentation: https://kawaiisec.org/docs\n🛠️ Tools: Run 'kawaiisec-help.sh' for available tools\n🧪 Labs: Check ~/Labs for vulnerable environments\n\n💖 Happy hacking with kawaii vibes! 💖"
+Icon=kawaiisec-logo
+Terminal=false
+Categories=System;
+StartupNotify=false
+EOF
+chmod +x /etc/skel/Desktop/Welcome.desktop
+
+# Set permissions
+chmod 644 /etc/issue /etc/issue.net /etc/os-release /etc/lsb-release
+chmod 644 /etc/hostname /etc/hosts
+
+echo "✅ KawaiiSec user and desktop branding applied successfully!"

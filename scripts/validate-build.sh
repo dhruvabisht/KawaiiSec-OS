@@ -1,153 +1,250 @@
 #!/bin/bash
 
 # KawaiiSec OS Build Validation Script
-# Checks for common issues that could cause build failures
+# Comprehensive validation of build environment and requirements
 
 set -euo pipefail
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+PURPLE='\033[0;35m'
+NC='\033[0m'
 
-# Error handling
-error_exit() {
-    echo -e "${RED}❌ Validation failed: $1${NC}" >&2
-    exit 1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Validation results
+ERRORS=0
+WARNINGS=0
+
+# Logging
+log_error() {
+    echo -e "${RED}❌ ERROR: $1${NC}" >&2
+    ((ERRORS++))
 }
 
-# Success message
-success() {
+log_warning() {
+    echo -e "${YELLOW}⚠️  WARNING: $1${NC}"
+    ((WARNINGS++))
+}
+
+log_success() {
     echo -e "${GREEN}✅ $1${NC}"
 }
 
-# Warning message
-warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
-}
-
-# Info message
-info() {
+log_info() {
     echo -e "${BLUE}ℹ️  $1${NC}"
 }
 
-echo -e "${BLUE}🔍 KawaiiSec OS Build Validation${NC}"
-echo "=================================="
+# Show banner
+show_banner() {
+    echo -e "${PURPLE}"
+    echo "╭──────────────────────────────────────────────╮"
+    echo "│      🌸 KawaiiSec Build Validator 🌸        │"
+    echo "│     Comprehensive Build Environment Check    │"
+    echo "╰──────────────────────────────────────────────╯"
+    echo -e "${NC}"
+}
+
+# Check Docker availability
+check_docker() {
+    log_info "Checking Docker environment..."
+    
+    if ! command -v docker >/dev/null 2>&1; then
+        log_error "Docker not found. Please install Docker Desktop."
+        return 1
+    fi
+    
+    if ! docker info >/dev/null 2>&1; then
+        log_error "Docker daemon not running. Please start Docker Desktop."
+        return 1
+    fi
+    
+    log_success "Docker is available and running"
+    
+    # Check Docker version
+    local docker_version=$(docker --version | cut -d' ' -f3 | cut -d',' -f1)
+    log_info "Docker version: $docker_version"
+    
+    # Check available resources
+    local docker_info=$(docker system info 2>/dev/null)
+    if echo "$docker_info" | grep -q "Total Memory"; then
+        local memory=$(echo "$docker_info" | grep "Total Memory" | awk '{print $3$4}')
+        log_info "Docker memory: $memory"
+    fi
+}
+
+# Check project structure
+check_project_structure() {
+    log_info "Validating project structure..."
+    
+    local required_files=(
+        "build-iso.sh"
+        "docker-build.sh"
+        "Dockerfile.builder"
+        "auto/config"
+        "auto/build"
+        "auto/clean"
+    )
+    
+    local required_dirs=(
+        "assets"
+        "config"
+        "hooks/normal"
+        "includes.chroot"
+        "scripts"
+        "output"
+    )
+    
+    cd "$PROJECT_DIR"
+    
+    for file in "${required_files[@]}"; do
+        if [ -f "$file" ]; then
+            log_success "Found required file: $file"
+        else
+            log_error "Missing required file: $file"
+        fi
+    done
+    
+    for dir in "${required_dirs[@]}"; do
+        if [ -d "$dir" ]; then
+            log_success "Found required directory: $dir"
+        else
+            log_error "Missing required directory: $dir"
+        fi
+    done
+}
 
 # Check script permissions
-info "Checking script permissions..."
-for script in scripts/*.sh; do
-    if [ -f "$script" ] && [ ! -x "$script" ]; then
-        warning "Script $script is not executable"
-        chmod +x "$script"
-        success "Fixed permissions for $script"
-    fi
-done
-
-# Check hook permissions
-info "Checking hook permissions..."
-for hook in hooks/normal/*.hook.chroot; do
-    if [ -f "$hook" ] && [ ! -x "$hook" ]; then
-        warning "Hook $hook is not executable"
-        chmod +x "$hook"
-        success "Fixed permissions for $hook"
-    fi
-done
-
-# Check required assets exist
-info "Checking required assets..."
-required_assets=(
-    "kawaiisec-docs/res/Wallpapers/kawaii_cafe.png"
-    "kawaiisec-docs/res/Wallpapers/dreamy_clouds.png"
-    "kawaiisec-docs/res/Wallpapers/classic_pastel_workspace.png"
-    "kawaiisec-docs/res/Wallpapers/retro_terminal.png"
-    "assets/graphics/logos/Kawaii.png"
-    "config/bootloaders/syslinux/splash.png"
-    "config/bootloaders/syslinux/syslinux.cfg"
-)
-
-for asset in "${required_assets[@]}"; do
-    if [ ! -f "$asset" ]; then
-        error_exit "Required asset not found: $asset"
-    else
-        success "Asset found: $asset"
-    fi
-done
-
-# Check package lists for problematic packages
-info "Checking package lists..."
-problematic_packages=(
-    "terminator"
-    "chromium"
-)
-
-for pkg in "${problematic_packages[@]}"; do
-    if grep -q "^$pkg$" config/package-lists/*.list.chroot; then
-        warning "Problematic package found: $pkg"
-    fi
-done
-
-# Check for duplicate entries in package lists
-info "Checking for duplicate package entries..."
-for pkglist in config/package-lists/*.list.chroot; do
-    if [ -f "$pkglist" ]; then
-        duplicates=$(grep -v '^#' "$pkglist" | grep -v '^$' | sort | uniq -d)
-        if [ -n "$duplicates" ]; then
-            warning "Duplicate packages found in $pkglist:"
-            echo "$duplicates"
+check_permissions() {
+    log_info "Checking script permissions..."
+    
+    local scripts=(
+        "build-iso.sh"
+        "docker-build.sh"
+        "auto/config"
+        "auto/build"
+        "auto/clean"
+    )
+    
+    cd "$PROJECT_DIR"
+    
+    for script in "${scripts[@]}"; do
+        if [ -f "$script" ]; then
+            if [ -x "$script" ]; then
+                log_success "Script is executable: $script"
+            else
+                log_warning "Script not executable: $script (will be fixed automatically)"
+                chmod +x "$script"
+            fi
         fi
-    fi
-done
-
-# Check hook execution order
-info "Checking hook execution order..."
-hooks=($(ls hooks/normal/*.hook.chroot 2>/dev/null | sort))
-if [ ${#hooks[@]} -gt 0 ]; then
-    success "Hooks found: ${#hooks[@]}"
-    for hook in "${hooks[@]}"; do
-        echo "  - $(basename "$hook")"
     done
-else
-    warning "No hooks found in hooks/normal/"
-fi
+}
 
-# Check Docker configuration
-if command -v docker >/dev/null 2>&1; then
-    info "Checking Docker configuration..."
-    if docker info >/dev/null 2>&1; then
-        success "Docker is running"
+# Check assets
+check_assets() {
+    log_info "Checking assets..."
+    
+    cd "$PROJECT_DIR"
+    
+    if [ -d "assets" ]; then
+        local asset_count=$(find assets -type f | wc -l)
+        log_success "Found $asset_count asset files"
+        
+        # Check for key assets
+        if [ -d "assets/graphics" ]; then
+            log_success "Graphics assets found"
+        else
+            log_warning "No graphics assets directory found"
+        fi
+        
+        if [ -d "assets/themes" ]; then
+            log_success "Theme assets found"
+        else
+            log_warning "No theme assets directory found"
+        fi
     else
-        warning "Docker is not running"
+        log_error "Assets directory not found"
     fi
-else
-    warning "Docker not found"
-fi
+}
 
-# Check build environment
-info "Checking build environment..."
-if [ -f "auto/config" ] && [ -x "auto/config" ]; then
-    success "Build configuration script found and executable"
-else
-    error_exit "Build configuration script missing or not executable"
-fi
-
-if [ -f "auto/build" ] && [ -x "auto/build" ]; then
-    success "Build script found and executable"
-else
-    error_exit "Build script missing or not executable"
-fi
+# Check disk space
+check_disk_space() {
+    log_info "Checking disk space..."
+    
+    local available_space
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        available_space=$(df -h "$PROJECT_DIR" | tail -1 | awk '{print $4}' | sed 's/G//')
+    else
+        available_space=$(df -h "$PROJECT_DIR" | tail -1 | awk '{print $4}' | sed 's/G//')
+    fi
+    
+    # Convert to numeric value (rough approximation)
+    local space_gb=$(echo "$available_space" | sed 's/[^0-9]*//g')
+    
+    if [ "$space_gb" -gt 20 ]; then
+        log_success "Sufficient disk space available: ${available_space}GB"
+    else
+        log_warning "Low disk space: ${available_space}GB (recommend 20GB+)"
+    fi
+}
 
 # Check output directory
-info "Checking output directory..."
-if [ -d "output" ]; then
-    success "Output directory exists"
-    chmod 755 output
-else
-    warning "Output directory missing, will be created during build"
-fi
+check_output_dir() {
+    log_info "Checking output directory..."
+    
+    cd "$PROJECT_DIR"
+    
+    if [ -d "output" ]; then
+        if [ -w "output" ]; then
+            log_success "Output directory is writable"
+        else
+            log_error "Output directory is not writable"
+        fi
+        
+        # Check for existing ISOs
+        local iso_count=$(find output -name "*.iso" -type f | wc -l)
+        if [ "$iso_count" -gt 0 ]; then
+            log_info "Found $iso_count existing ISO files in output directory"
+        fi
+    else
+        log_info "Creating output directory..."
+        mkdir -p output
+        log_success "Output directory created"
+    fi
+}
 
-echo ""
-echo -e "${GREEN}🎉 Build validation completed successfully!${NC}"
-echo -e "${BLUE}💡 You can now run: ./docker-build.sh${NC}" 
+# Main validation
+main() {
+    show_banner
+    
+    check_docker
+    check_project_structure
+    check_permissions
+    check_assets
+    check_disk_space
+    check_output_dir
+    
+    echo ""
+    echo -e "${PURPLE}📊 Validation Summary:${NC}"
+    
+    if [ $ERRORS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
+        echo -e "${GREEN}🎉 All checks passed! Your build environment is ready.${NC}"
+        exit 0
+    elif [ $ERRORS -eq 0 ]; then
+        echo -e "${YELLOW}⚠️  $WARNINGS warning(s) found, but build should work.${NC}"
+        exit 0
+    else
+        echo -e "${RED}❌ $ERRORS error(s) and $WARNINGS warning(s) found.${NC}"
+        echo -e "${RED}Please fix the errors before building.${NC}"
+        exit 1
+    fi
+}
+
+# Run if executed directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

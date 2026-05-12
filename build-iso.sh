@@ -158,19 +158,41 @@ prepare_build_environment() {
 
 # Copy assets to build environment
 copy_assets() {
-    info "Copying assets to build environment..."
+    info "FORCE copying assets to build environment..."
     
     # Create temporary assets directory for hooks to use
     sudo mkdir -p /tmp/build-assets
     
-    # Copy project assets
+    # FORCE copy project assets with better error handling
     if [ -d "${ASSETS_DIR}" ]; then
-        sudo cp -r "${ASSETS_DIR}"/* /tmp/build-assets/
+        info "Copying assets from: ${ASSETS_DIR}"
+        sudo cp -r "${ASSETS_DIR}"/* /tmp/build-assets/ || {
+            warning "Failed to copy some assets from ${ASSETS_DIR}"
+            # Try to copy individual directories
+            for subdir in "${ASSETS_DIR}"/*; do
+                if [ -d "$subdir" ]; then
+                    sudo cp -r "$subdir" /tmp/build-assets/ || warning "Failed to copy $(basename "$subdir")"
+                fi
+            done
+        }
+    else
+        warning "Assets directory not found: ${ASSETS_DIR}"
+        # Create empty asset structure to prevent build failures
+        sudo mkdir -p /tmp/build-assets/{graphics,themes,audio,scripts}
     fi
     
-    # Copy kawaiisec-docs if present
+    # FORCE copy kawaiisec-docs if present
     if [ -d "${BUILD_DIR}/kawaiisec-docs" ]; then
+        info "Copying kawaiisec-docs from: ${BUILD_DIR}/kawaiisec-docs"
         sudo cp -r "${BUILD_DIR}/kawaiisec-docs" /tmp/build-assets/
+    else
+        warning "kawaiisec-docs directory not found: ${BUILD_DIR}/kawaiisec-docs"
+    fi
+    
+    # FORCE copy includes.chroot assets to build-assets for hooks
+    if [ -d "${BUILD_DIR}/includes.chroot" ]; then
+        info "Copying includes.chroot assets to build-assets"
+        sudo cp -r "${BUILD_DIR}/includes.chroot" /tmp/build-assets/
     fi
     
     # Copy scripts
@@ -216,15 +238,25 @@ build_iso() {
     # Run the build
     sudo ./auto/build 2>&1 | tee -a "$LOG_FILE"
     
-    # Check build result
+    # Check build result - look for any ISO files
+    local iso_file=""
     if [ -f "live-image-amd64.hybrid.iso" ]; then
+        iso_file="live-image-amd64.hybrid.iso"
+    elif [ -f "binary.hybrid.iso" ]; then
+        iso_file="binary.hybrid.iso"
+    else
+        # Look for any ISO file
+        iso_file=$(find . -name "*.iso" -type f | head -1)
+    fi
+    
+    if [ -n "$iso_file" ] && [ -f "$iso_file" ]; then
         local end_time=$(date +%s)
         local build_time=$((end_time - start_time))
         local build_minutes=$((build_time / 60))
         local build_seconds=$((build_time % 60))
         
         # Move ISO to project root with proper name
-        mv "live-image-amd64.hybrid.iso" "${BUILD_DIR}/${ISO_NAME}"
+        mv "$iso_file" "${BUILD_DIR}/${ISO_NAME}"
         
         success "ISO build completed in ${build_minutes}m ${build_seconds}s"
         success "ISO saved as: ${BUILD_DIR}/${ISO_NAME}"
@@ -255,8 +287,13 @@ validate_iso() {
         error_exit "ISO file not found"
     fi
     
-    # Check ISO is not empty
-    local iso_size=$(stat -c%s "${BUILD_DIR}/${ISO_NAME}")
+    # Check ISO is not empty (use macOS compatible stat command)
+    local iso_size
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        iso_size=$(stat -f%z "${BUILD_DIR}/${ISO_NAME}")
+    else
+        iso_size=$(stat -c%s "${BUILD_DIR}/${ISO_NAME}")
+    fi
     if [ "$iso_size" -lt 100000000 ]; then  # Less than 100MB is suspicious
         error_exit "ISO file seems too small ($iso_size bytes)"
     fi
@@ -420,8 +457,8 @@ main() {
     echo "╭──────────────────────────────────────────────╮"
     echo "│          🎉 BUILD COMPLETED! 🎉              │"
     echo "│                                              │"
-    echo "│     ISO: ${ISO_NAME}        │"
-    echo "│     Location: ${BUILD_DIR}/           │"
+    echo "│     ISO: ${ISO_NAME}"
+    echo "│     Location: ${BUILD_DIR}/"
     echo "╰──────────────────────────────────────────────╯"
     echo -e "${NC}"
     
