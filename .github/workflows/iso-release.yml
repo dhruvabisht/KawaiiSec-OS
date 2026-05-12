@@ -47,6 +47,15 @@ jobs:
       with:
         fetch-depth: 0
 
+    - name: 🧹 Free Disk Space
+      run: |
+        echo "🧹 Clearing unnecessary files to free up space..."
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf "/usr/local/share/boost"
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        df -h
+
     - name: 🛠️ Setup Build Environment
       run: |
         sudo apt-get update
@@ -60,7 +69,9 @@ jobs:
           dosfstools \
           squashfs-tools \
           qemu-system-x86 \
-          qemu-utils
+          qemu-utils \
+          file \
+          rsync
 
     - name: 📋 Set Build Variables
       id: vars
@@ -329,4 +340,4 @@ jobs:
       run: |
         echo "🎉 KawaiiSec OS ${{ needs.build-iso.outputs.version }} build completed successfully!"
         echo "📦 ISO: ${{ needs.build-iso.outputs.iso_name }}"
-        echo "🚀 Release: https://github.com/${{ github.repository }}/releases" 
+        echo "🚀 Release: https://github.com/${{ github.repository }}/releases"

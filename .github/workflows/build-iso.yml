@@ -32,6 +32,15 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+
+    - name: 🧹 Free Disk Space
+      run: |
+        echo "🧹 Clearing unnecessary files to free up space..."
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf "/usr/local/share/boost"
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        df -h
         
     - name: 🔧 Set up build environment
       run: |
@@ -287,4 +296,4 @@ jobs:
           
           Happy hacking! 🌸
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
